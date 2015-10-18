@@ -1,0 +1,25 @@
+Metadata-Version: 1.0
+Name: unicornhat
+Version: 2.0.2
+Summary: The Python library for UnicornHat a matrix of 64, eye-burning, ws2812 LEDs!
+Home-page: https://github.com/pimoroni/ws2812-RPi/
+Author: Philip Howard
+Author-email: phil@pimoroni.com
+License: UNKNOWN
+Description: 2.0.0
+        -----
+        
+        * Major switch over to rpi_ws281x library
+        * Raspberry Pi 2 compatibility
+        
+        1.0.1
+        -----
+        
+        * Fix to rotation()
+        
+        1.0.0
+        -----
+        
+        * Initial Release
+        
+Platform: UNKNOWN
