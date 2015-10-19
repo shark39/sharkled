@@ -3,8 +3,6 @@ import sys
 import logging
 from flask import Flask, request, Response, make_response, jsonify
 from flask.ext.autodoc import Autodoc
-from flask.ext.cors import CORS
-#from flask.ext.api import status
 
 from constants import *
 
@@ -65,7 +63,7 @@ def what():
 def off():
 	'''switch everything off'''
 	ws.off()
-	return ''
+	return getResponse('', 200)
 
 
 
