@@ -1,8 +1,12 @@
 
 import sys
-from flask import Flask, request, Response, make_response
+import logging
+from flask import Flask, request, Response, make_response, jsonify
 from flask.ext.autodoc import Autodoc
+from flask.ext.cors import CORS
 #from flask.ext.api import status
+
+from constants import *
 
 if sys.platform == 'linux2':
 	## using raspberry
@@ -15,6 +19,10 @@ else:
 	RPI = False
 
 
+logging.basicConfig(filename='debug.log',level=logging.DEBUG, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+
+
+
 def mergergb(r, g, b):
 	return str('%6x' %((r << 16) + (g << 8) + b)).replace(' ', '0')
 
@@ -22,16 +30,26 @@ def splitrgb(rgb):
 	return rgb>>16, (rgb>>8) & 255, rgb & 255 
 
 
+def getResponse(jsondata, status):
+	resp = make_response(jsondata, status)
+	resp.headers['Access-Control-Allow-Origin'] = '*'
+	resp.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
+	resp.headers['Access-Control-Allow-Headers'] = "Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With"
+	return resp
+
+
 
 app = Flask(__name__)
 auto = Autodoc(app)
+#cors = CORS(app, resources={r"/*": {"origins": "*"}})
 
 
-@app.route("/range")
+@app.route("/areas")
 @auto.doc()
 def ranges():
-	'''Returns a list of given ranges'''
-	return ["vorne", "tv", "pascals zimmer"]
+	'''Returns a json of given ranges'''
+	return getResponse(jsonify(areas=AREAS.keys()), 200)
+	
 
 @app.route("/pixel", methods=['OPTIONS'])
 def what():
@@ -42,27 +60,54 @@ def what():
 	return resp
 
 
+@app.route("/off")
+@auto.doc()
+def off():
+	'''switch everything off'''
+	ws.off()
+	return ''
+
+
+
 @app.route("/pixel", methods=['POST'])
 @auto.doc()
 def set_pixel():
-	#if not ('rgb' in request.form or all([v in request.form for v in 'rgb'])):
-	#	return 'Please include rgb or r and g and b in your form parameters', 400
-	#if 'rgb' in request.form:
+	'''Parameters: 
+		rgb: Integer between 0x0 and 0xFFFFFF
+		or: r, g, b: int between 0x and 0xFF each
+		and: areas: comma seperated list with names of areas 
+		or: range: python syntax for positions for leds
+		''' 
 	post = request.get_json()
-	print post
-	rgb = int(post['rgb'])
-	pixel = post['pixel']
-	for p in eval('range(150)'+pixel):
-		print p
-		ws.set_pixel(p, splitrgb(rgb)[0], splitrgb(rgb)[1], splitrgb(rgb)[2])
-	ws.show()
-	resp = make_response()
-	resp.headers['Access-Control-Allow-Origin'] = '*'
-	resp.headers["Access-Control-Allow-Methods"] = "GET,POST,PUT,DELETE,OPTIONS"
-	resp.headers['Access-Control-Allow-Headers'] = "Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With"
-	return resp
-	
+	if not ('rgb' in post or all([v in post.keys() for v in 'rgb'])):
+		return 'Please include rgb or r and g and b in your form parameters', 400
+	## get the color
+	if 'rgb' in post:
+		rgb = int(post['rgb'])
+		r, g, b = splitrgb(rgb) 
+	else:
+		r, g, b = map(int, [post[v] for v in 'rgb'])
+	print("Color set.")
+	## get the pos
+	if 'areas' in post:
+		print(post['areas'])
+		pos = []
+		for a in post["areas"]:
+			pos += AREAS[a]
+	if 'range' in post:
+		print('range(LEDS_COUNT)'+ post["range"])
+		try: 
+			pos = eval('range(LEDS_COUNT)'+ post["range"])
+		except Exception as ex:
+			print(ex)
 
+	print(pos)
+	print("Position set.")
+	for p in pos:
+		ws.set_pixel(p, r, g, b)
+	ws.show()
+	return getResponse('', 200)
+	
 
 
 @app.route("/scene", methods=['POST'])
