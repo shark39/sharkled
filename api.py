@@ -39,8 +39,6 @@ def getResponse(jsondata, status):
 
 app = Flask(__name__)
 auto = Autodoc(app)
-#cors = CORS(app, resources={r"/*": {"origins": "*"}})
-
 
 @app.route("/areas")
 @auto.doc()
@@ -65,6 +63,12 @@ def off():
 	ws.off()
 	return getResponse('', 200)
 
+
+@app.route("/brightness/<float:brightness>", methods=["POST"])
+@auto.doc()
+def brightness(brightness):
+	ws.brightness(brightness)
+	return getResponse('', 200)
 
 
 @app.route("/pixel", methods=['POST'])
