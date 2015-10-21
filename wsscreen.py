@@ -1,3 +1,5 @@
+
+import colorsys
 import Tkinter as tk 
 
 
@@ -31,8 +33,8 @@ class Stripe:
 
 	def clear(self):
 	    """Clear the buffer"""
-	    for i in range(self.LED_COUNT):
-	    	leds[i] = "0x000000"
+	    for i in range(self.LEDS_COUNT):
+	    	self.leds[i] = "#000000"
 
 	def off(self):
 	    """Clear the buffer and immediately update UnicornHat
@@ -40,11 +42,11 @@ class Stripe:
 	    self.clear()
 	    self.show()
 
-	def set_pixel_hsv(self, index, y, h, s, v):
+	def set_pixel_hsv(self, index, h, s, v):
 	    """Set a single pixel to a colour using HSV"""
-	    #r, g, b = [int(n*255) for n in colorsys.hsv_to_rgb(h, s, v)]
-	    #ws2812.setPixelColorRGB(index, r, g, b)
-	    pass
+	    r, g, b = [int(n*255) for n in colorsys.hsv_to_rgb(h, s, v)]
+	    self.leds[index] = convrgb(r, g, b)
+	    
 
 	def set_pixel(self, x, r, g, b):
 	    """Set a single pixel to RGB colour"""
@@ -52,8 +54,8 @@ class Stripe:
 
 	def get_pixel(self, x):
 	    """Get the RGB value of a single pixel"""
-	    #pixel = ws2812.getPixelColorRGB(index)
-	    return #int(pixel.r), int(pixel.g), int(pixel.b)
+	    pixel = self.leds[x] 
+	    return int(pixel[1:3], 16), int(pixel[3:5], 16), int(pixel[5:7], 16)
 
 
 	def set_pixels(self, pixels):
