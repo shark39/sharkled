@@ -1,28 +1,18 @@
 
 import sys
-import logging
 import colorsys
 import math
+import datetime
+import threading
 from functools import partial
 from time import sleep
+from logging import FileHandler, Formatter, getLogger, DEBUG
 from flask import Flask, request, Response, make_response, jsonify
 from flask.ext.autodoc import Autodoc
 
 from constants import *
 
-if sys.platform == 'linux2':
-	## using raspberry
-	RPI = True
-	import unicornhat as ws
-else:
-	from thread import start_new_thread
-	from wsscreen import Stripe 
-	ws = Stripe() 
-	RPI = False
-
-
-logging.basicConfig(filename='debug.log',level=logging.DEBUG, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-
+from LedControl import LEDController, LEDMaster
 
 
 def mergergb(r, g, b):
@@ -54,17 +44,48 @@ def getPosition(areas=None, indexes=None, **kwargs):
 			app.logger.debug("Cannot parse range. " + str(ex))
 	return pos
 
+def getColor(**kwargs):
+	if 'rgb' in kwargs.keys():
+		return splitrgb(kwargs['rgb'])
+	if all(v in 'rgb' for v in kwargs.keys()):
+		return int(kwargs['r']), int(kwargs['g']), int(kwargs['b'])
+	else:
+		raise Exception("Cannot decode color.")
+
+
+
+
 app = Flask(__name__)
 auto = Autodoc(app)
+master = LEDMaster()
+
+loggers = [app.logger]
+file_handler = FileHandler('flask.log')
+file_handler.setLevel(DEBUG)
+file_handler.setFormatter(Formatter('%(asctime)s %(levelname)8s [%(filename)s/%(funcName)s:%(lineno)d] - %(message)s'))
+
+for logger in loggers:
+	logger.handlers = []
+	logger.addHandler(file_handler)
+
+
 
 ###############
 ##Development
 ###############
 
 
+@app.route('/test')
+def testthread():
+	master.add(LEDController('test', range(10)).setColor, (255, 255, 255))
+	return getResponse()
+
+
 @app.route('/dev/logs/debug')
 def debuglogs():
-	pass
+	with open('flask.log') as f:
+		return "/n".join(f.read().split('/n')[-5:])
+	
 
 @app.route("/areas")
 @auto.doc()
@@ -73,20 +94,22 @@ def ranges():
 	return getResponse(jsonify(areas=AREAS.keys()), 200)
 	
 
-
 @app.route("/off")
 @auto.doc()
 def off():
 	'''switch everything off'''
-	ws.off()
-	return getResponse('', 200)
+	pass
+	return getResponse()
 
+@app.route("/running")
+def getThreads():
+	return str([t.name for t in master.enumerateThreads()])
 
 @app.route("/brightness/<float:brightness>", methods=["POST"])
 @auto.doc()
 def brightness(brightness):
-	ws.brightness(brightness)
-	return getResponse('', 200)
+	#TODO ws.brightness(brightness)
+	return getResponse()
 
 
 @app.route("/pixel", methods=['POST', 'OPTIONS'])
@@ -103,21 +126,15 @@ def set_pixel():
 
 	post = request.get_json()
 
-	if not ('rgb' in post or all([v in post.keys() for v in 'rgb'])):
-		return 'Please include rgb or r and g and b in your form parameters', 400
 	## get the color
-	if 'rgb' in post:
-		rgb = int(post['rgb'])
-		r, g, b = splitrgb(rgb) 
-	else:
-		r, g, b = map(int, [post[v] for v in 'rgb'])
+	r,g, b = getColor(**post)
+	app.logger.debug("Got Color.")
 	## get the pos
-	print("pixel")
 	pos = getPosition(**post)
 	app.logger.debug("Got Position.")
-	for p in pos:
-		ws.set_pixel(p, r, g, b)
-	ws.show()
+	
+	master.add(LEDController('pixel'+str(datetime.datetime.now()), pos).setColor, (r, g, b))
+	
 	return getResponse()
 	
 
@@ -127,22 +144,6 @@ def set_pixel():
 def set(range_id, scene_id):
 	pass
 
-
-
-def make_pulsate(pos):
-	for t in range(300): ## damits stoppt
-		for i, p in enumerate(pos):
-			## in hsv umrechnen
-			h, s, v = colorsys.rgb_to_hsv(*ws.get_pixel(p))
-			## mit sin(ID) multiplizieren
-			new_h = (math.sin(i*2*math.pi/len(pos))+1)/3*h
-			ws.set_pixel_hsv(p, new_h, s, v)
-		ws.show()
-		sleep(0.1)
-
-
-
-	## zurueckumrechnen
 
 
 
@@ -161,20 +162,10 @@ def pulsate():
 
 	post = request.get_json()
 	pos = getPosition(**post)
-	make_pulsate(pos)
+	#make_pulsate(pos)
 
 	return getResponse()
 
-
-def make_strobe(pos):
-	leds = [ws.get_pixel(d) for d in pos]
-	for i in range(300):
-		ws.off()
-		sleep(0.1)
-		for p, d in zip(pos, leds):
-			ws.set_pixel(p, *d)
-		ws.show()	
-		sleep(0.1)
 
 @app.route("/effect/strobe", methods=['POST', 'OPTIONS'])
 def strobe():
@@ -184,8 +175,7 @@ def strobe():
 	post = request.get_json()
 	pos = getPosition(**post)
 
-	#start_new_thread(make_strobe, (pos,))
-	make_strobe(pos)
+	master.add(LEDController('strobe'+str(datetime.datetime.now()), pos).strobe, (1, ))
 	return getResponse()
 
 
@@ -195,12 +185,5 @@ def documentation():
 
 if __name__ == '__main__':
 	
-	if RPI:
-		app.run(host='0.0.0.0', port=9000, debug=True)
-	else:
-		start_new_thread(ws.win.mainloop, ())
-		
-		start_new_thread(partial(app.run, '0.0.0.0', port=9000), ()) 
-		while True:
-			pass
-			
+	app.run(host='0.0.0.0', port=9000, debug=True)
+	
