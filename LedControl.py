@@ -15,7 +15,7 @@ else:
 	ws = Stripe() 
 	RPI = False
 	t = Thread(target=ws.win.mainloop, args=())
-	#t.start()
+	t.start()
 
 
 
@@ -23,21 +23,13 @@ class LEDMaster:
 
     def __init__(self):
         self.queue = Queue()
+        self.threads = []
 
     def add(self, function, args=(), kwargs={}):
-        t = Thread(target=self.run)
-        t.daemon = True
-        t.start()
-        self.queue.put((function, args, kwargs))
 
-    def execute(self, function, args, kwargs):
-        partial(function, *args, **kwargs)()
-
-    def run(self):
-        while True:
-            function, args, kwargs = self.queue.get()
-            self.execute(function, args, kwargs)
-            self.queue.task_done()
+      t = Thread(target=function, args=args)
+      t.start()
+      
 
     def enumerateThreads(self):
     	return threading.enumerate()
@@ -53,6 +45,7 @@ class LEDController:
 		self.pos = pos
 		self.name = name
 		self.leds = []
+		self.finish = False
 
 
 	def setColor(self, r, g, b):
@@ -71,6 +64,8 @@ class LEDController:
 				ws.set_pixel(p, *d)
 			ws.show()	
 			sleep(frequency/2)
+			if self.finish:
+				return
 
 
 	def pulsate(self, pos):
@@ -85,6 +80,10 @@ class LEDController:
 			sleep(0.1)
 
 
+	def finishThread(self):
+		self.finish = True
+
+
 
 	## zurueckumrechnen
 
@@ -94,3 +93,39 @@ class LEDController:
 		ws.off()
 
 
+if __name__ == '__main__':
+
+
+
+	master = LEDMaster()
+	c = LEDController('1', range(10))
+	t1 = Thread(target=c.setColor, args=(255, 0, 0))
+	t1.start()
+	print "Number of Threads: ", len(master.enumerateThreads())
+		
+	c = LEDController('1', range(10, 20))
+	t3 = Thread(target=c.setColor, args=(255, 255, 0))
+	t3.start()
+	
+	print "Number of Threads: ", len(master.enumerateThreads())
+
+
+	c1 = LEDController('1', range(0, 20))
+	t2 = Thread(target=c1.strobe, args=(3,))
+	t2.start()
+	
+	print "Number of Threads: ", len(master.enumerateThreads())
+	
+
+	c = LEDController('1', range(10, 30))
+	c.setColor(255, 255, 255)
+	print "Number of Threads: ", len(master.enumerateThreads())
+
+
+	c = LEDController('1', range(0, 30))
+	t2 = Thread(target=c.strobe, args=(2,))
+	t2.start()
+
+	c1.finishThread()
+	
+		
