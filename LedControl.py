@@ -15,7 +15,7 @@ else:
 	ws = Stripe() 
 	RPI = False
 	t = Thread(target=ws.win.mainloop, args=())
-	#t.start()
+	t.start()
 
 
 

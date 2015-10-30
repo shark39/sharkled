@@ -184,11 +184,10 @@ def strobe():
 @app.route("/stop/<cname>")
 def stop_thread(cname):
 	out = ''
-	raise
-	for i, t in master.controllers:
-
+	for index, (i, t) in enumerate(master.controllers):
 		if i.name == cname:
 			i.finishThread()
+			master.controllers.pop(index)
 			return getResponse("finished")
 	return getResponse("nothing finished", 200)
 
