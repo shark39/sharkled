@@ -15,7 +15,7 @@ else:
 	ws = Stripe() 
 	RPI = False
 	t = Thread(target=ws.win.mainloop, args=())
-	t.start()
+	#t.start()
 
 
 
@@ -23,13 +23,20 @@ class LEDMaster:
 
     def __init__(self):
         self.queue = Queue()
-        self.threads = []
+        self.controllers = []
 
-    def add(self, function, args=(), kwargs={}):
+    def add(self, instance, function, args=(), kwargs={}):
 
       t = Thread(target=function, args=args)
       t.start()
-      
+      self.controllers.append((instance, t))
+
+    def enumerateControllers(self):
+    	#self.controllers = filter(lambda x: not x[0].finish, self.controllers)
+    	print [c.name for c, x in self.controllers]
+    	return self.controllers
+
+
 
     def enumerateThreads(self):
     	return threading.enumerate()

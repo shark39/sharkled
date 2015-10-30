@@ -103,7 +103,7 @@ def off():
 
 @app.route("/running")
 def getThreads():
-	return str([t.name for t in master.enumerateThreads()])
+	return str([i.name for i, t in master.controllers])
 
 @app.route("/brightness/<float:brightness>", methods=["POST"])
 @auto.doc()
@@ -132,8 +132,10 @@ def set_pixel():
 	## get the pos
 	pos = getPosition(**post)
 	app.logger.debug("Got Position.")
+
+	c = LEDController('pixel'+str(datetime.datetime.now()), pos)
 	
-	master.add(LEDController('pixel'+str(datetime.datetime.now()), pos).setColor, (r, g, b))
+	master.add(c, c.setColor, (r, g, b))
 	
 	return getResponse()
 	
@@ -175,8 +177,21 @@ def strobe():
 	post = request.get_json()
 	pos = getPosition(**post)
 
-	master.add(LEDController('strobe'+str(datetime.datetime.now()), pos).strobe, (1, ))
+	c = LEDController('strobe', pos)
+	master.add(c, c.strobe, (1, ))
 	return getResponse()
+
+@app.route("/stop/<cname>")
+def stop_thread(cname):
+	out = ''
+	raise
+	for i, t in master.controllers:
+
+		if i.name == cname:
+			i.finishThread()
+			return getResponse("finished")
+	return getResponse("nothing finished", 200)
+
 
 
 @app.route('/docs')
