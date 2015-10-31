@@ -3,7 +3,7 @@ import atexit
 import colorsys
 
 # LED strip configuration:
-LED_COUNT      = 600      # Number of LED pixels.
+LED_COUNT      = 300      # Number of LED pixels.
 LED_PIN        = 18      # GPIO pin connected to the pixels (must support PWM!).
 LED_FREQ_HZ    = 800000  # LED signal frequency in hertz (usually 800khz)
 LED_DMA        = 5       # DMA channel to use for generating signal (try 5)
@@ -75,22 +75,21 @@ def set_pixel(x, r, g, b):
     ws2812.setPixelColorRGB(x, r, g, b)
 
 
-def get_pixel(x):
+def get_pixel(index):
     """Get the RGB value of a single pixel"""
     pixel = ws2812.getPixelColorRGB(index)
     return int(pixel.r), int(pixel.g), int(pixel.b)
 
 
 def set_pixels(pixels):
-    for x in range(8):
-        for y in range(8):
-            r, g, b = pixels[y][x]
-            set_pixel(x, y, r, g, b)
+    for x in range(LED_COUNT):
+        r, g, b = pixels[x]
+        set_pixel(x, r, g, b)
 
 
 def get_pixels():
     """Get the RGB value of all pixels in a 7x7x3 2d array of tuples"""
-    return [[get_pixel(x, y) for x in range(8)] for y in range(8)]
+    return [get_pixel(x) for x in range(LED_COUNT)]
 
 
 def show():
