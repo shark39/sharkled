@@ -6,7 +6,7 @@ from time import sleep
 from functools import partial
 import sys
 
-if sys.platform == 'linux2':
+if sys.platform in ['linux2', 'linux']:
 	## using raspberry
 	RPI = True
 	import unicornhat as ws

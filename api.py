@@ -77,7 +77,10 @@ for logger in loggers:
 
 @app.route('/test')
 def testthread():
-	master.add(LEDController('test', range(10)).setColor, (255, 255, 255))
+	c = LEDController('pixel'+str(datetime.datetime.now()), range(100))
+	master.add(c, c.setColor, (0, 200, 0))
+	c = LEDController('strobe', range(100))
+	master.add(c, c.strobe, (2, ))
 	return getResponse()
 
 
