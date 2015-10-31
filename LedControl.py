@@ -31,6 +31,7 @@ class LEDMaster:
       t.start()
       self.controllers.append((instance, t))
 
+
     def enumerateControllers(self):
     	#self.controllers = filter(lambda x: not x[0].finish, self.controllers)
     	#print[c.name for c, x in self.controllers]
@@ -59,6 +60,7 @@ class LEDController:
 		for p in self.pos:
 			ws.set_pixel(p, r, g, b)
 		ws.show()
+		
 
 	def strobe(self, frequency):
 		
