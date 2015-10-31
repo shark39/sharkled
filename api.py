@@ -80,7 +80,7 @@ def testthread():
 	c = LEDController('pixel'+str(datetime.datetime.now()), range(100))
 	master.add(c, c.setColor, (255, 255, 0))
 	c = LEDController('strobe', range(100))
-	master.add(c, c.strobe, (0.5, ))
+	master.add(c, c.strobe, (2, ))
 	return getResponse()
 
 
@@ -179,9 +179,10 @@ def strobe():
 
 	post = request.get_json()
 	pos = getPosition(**post)
+	frequency = post["frequency"]
 
 	c = LEDController('strobe', pos)
-	master.add(c, c.strobe, (1, ))
+	master.add(c, c.strobe, (frequency, ))
 	return getResponse()
 
 @app.route("/stop/<cname>")
