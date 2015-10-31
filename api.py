@@ -80,7 +80,7 @@ def testthread():
 	c = LEDController('pixel'+str(datetime.datetime.now()), range(100))
 	master.add(c, c.setColor, (255, 255, 0))
 	c = LEDController('strobe', range(100))
-	master.add(c, c.strobe, (1, ))
+	master.add(c, c.strobe, (0.5, ))
 	return getResponse()
 
 
