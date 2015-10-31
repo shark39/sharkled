@@ -1,28 +1,27 @@
 from time import sleep
-from Queue import Queue
 import threading
 from threading import Thread
 from time import sleep
 from functools import partial
 import sys
 
-if sys.platform == 'linux2':
+if sys.platform == 'linux':
 	## using raspberry
 	RPI = True
 	import unicornhat as ws
 else:
-	from wsscreen import Stripe 
-	ws = Stripe() 
+	#from wsscreen import Stripe 
+	#ws = Stripe() 
 	RPI = False
-	t = Thread(target=ws.win.mainloop, args=())
-	t.start()
+	#t = Thread(target=ws.win.mainloop, args=())
+	#t.start()
 
 
 
 class LEDMaster:
 
     def __init__(self):
-        self.queue = Queue()
+        
         self.controllers = []
 
     def add(self, instance, function, args=(), kwargs={}):
@@ -33,7 +32,7 @@ class LEDMaster:
 
     def enumerateControllers(self):
     	#self.controllers = filter(lambda x: not x[0].finish, self.controllers)
-    	print [c.name for c, x in self.controllers]
+    	#print[c.name for c, x in self.controllers]
     	return self.controllers
 
 
@@ -108,25 +107,25 @@ if __name__ == '__main__':
 	c = LEDController('1', range(10))
 	t1 = Thread(target=c.setColor, args=(255, 0, 0))
 	t1.start()
-	print "Number of Threads: ", len(master.enumerateThreads())
+	print("Number of Threads: ", len(master.enumerateThreads()))
 		
 	c = LEDController('1', range(10, 20))
 	t3 = Thread(target=c.setColor, args=(255, 255, 0))
 	t3.start()
 	
-	print "Number of Threads: ", len(master.enumerateThreads())
+	#print "Number of Threads: ", len(master.enumerateThreads())
 
 
 	c1 = LEDController('1', range(0, 20))
 	t2 = Thread(target=c1.strobe, args=(3,))
 	t2.start()
 	
-	print "Number of Threads: ", len(master.enumerateThreads())
+	#print "Number of Threads: ", len(master.enumerateThreads())
 	
 
 	c = LEDController('1', range(10, 30))
 	c.setColor(255, 255, 255)
-	print "Number of Threads: ", len(master.enumerateThreads())
+	#print "Number of Threads: ", len(master.enumerateThreads())
 
 
 	c = LEDController('1', range(0, 30))
