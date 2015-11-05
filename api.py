@@ -45,12 +45,14 @@ def getPosition(areas=None, indexes=None, **kwargs):
 	return pos
 
 def getColor(**kwargs):
+	app.logger.debug("Got information to decode for color" + str(kwargs))
 	if 'rgb' in kwargs.keys():
 		return splitrgb(kwargs['rgb'])
-	if all(v in 'rgb' for v in kwargs.keys()):
+	if 'r' in kwargs.keys() and 'g' in kwargs.keys() and 'b' in kwargs.keys():
 		return int(kwargs['r']), int(kwargs['g']), int(kwargs['b'])
 	else:
 		raise Exception("Cannot decode color.")
+
 
 
 
@@ -88,7 +90,16 @@ def testthread():
 def debuglogs():
 	with open('flask.log') as f:
 		return "/n".join(f.read().split('/n')[-5:])
-	
+
+@app.route('/dev/logs/requests')
+def requestlogs():
+	with open('nohup.out') as f:
+		return "/n".join(f.read().split('/n')[-5:])
+
+
+###############################
+##############################
+###############################	
 
 @app.route("/areas")
 @auto.doc()
@@ -137,7 +148,6 @@ def set_pixel():
 	app.logger.debug("Got Position.")
 
 	c = LEDController('pixel'+str(datetime.datetime.now()), pos)
-	
 	master.add(c, c.setColor, (r, g, b))
 	
 	return getResponse()
@@ -167,8 +177,7 @@ def pulsate():
 
 	post = request.get_json()
 	pos = getPosition(**post)
-	#make_pulsate(pos)
-
+	
 	return getResponse()
 
 

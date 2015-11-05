@@ -33,10 +33,12 @@ class LEDMaster:
 
 
     def enumerateControllers(self):
-    	#self.controllers = filter(lambda x: not x[0].finish, self.controllers)
+    	self.controllers = filter(lambda x: not x[0].finish, self.controllers)
     	#print[c.name for c, x in self.controllers]
     	return self.controllers
 
+    def drop(self, name, timestamp):
+    	pass
 
 
     def enumerateThreads(self):
@@ -52,24 +54,29 @@ class LEDController:
 	def __init__(self, name, pos):
 		self.pos = pos
 		self.name = name
-		self.leds = []
+		self.leds = pos*[(0,0,0)]
 		self.finish = False
 
 
 	def setColor(self, r, g, b):
 		for p in self.pos:
+			self.leds[p] = r, g, b
 			ws.set_pixel(p, r, g, b)
 		ws.show()
+		self.finish = True
 		
 
 	def strobe(self, frequency):
 		
-		leds = [ws.get_pixel(d) for d in self.pos]
-
+		def inPos(i, value):
+			if i in self.pos:
+				return 0, 0, 0
+			return value
+		off_leds = [inPos(p, ws.get_pixel(p)) for p in self.pos]
 		while True:
-			ws.off()
+			ws.set_pixels(off_leds)
 			sleep(frequency/2)
-			for p, d in zip(self.pos, leds):
+			for p, d in zip(self.pos, self.leds):
 				ws.set_pixel(p, *d)
 			ws.show()	
 			sleep(frequency/2)
@@ -77,7 +84,8 @@ class LEDController:
 				return
 
 
-	def pulsate(self, pos):
+	def pulsate(self):
+		pos = range(1)
 		for t in range(300): ## damits stoppt
 			for i, p in enumerate(pos):
 				## in hsv umrechnen
