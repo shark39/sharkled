@@ -1,0 +1,98 @@
+Traceback (most recent call last):
+  File "api.py", line 63, in <module>
+    file_handler = FileHandler('flask.log')
+  File "/usr/lib/python2.7/logging/__init__.py", line 911, in __init__
+    StreamHandler.__init__(self, self._open())
+  File "/usr/lib/python2.7/logging/__init__.py", line 936, in _open
+    stream = open(self.baseFilename, self.mode)
+IOError: [Errno 13] Permission denied: '/home/pi/sharkled/flask.log'
+ * Running on http://0.0.0.0:9000/ (Press CTRL+C to quit)
+ * Restarting with stat
+192.168.0.104 - - [31/Oct/2015 20:44:40] "GET /pixel HTTP/1.1" 405 -
+192.168.0.104 - - [31/Oct/2015 20:44:47] "GET /pixel HTTP/1.1" 405 -
+192.168.0.104 - - [31/Oct/2015 20:44:49] "GET /pixel HTTP/1.1" 405 -
+192.168.0.104 - - [31/Oct/2015 20:44:49] "GET /pixel HTTP/1.1" 405 -
+192.168.0.104 - - [31/Oct/2015 20:44:50] "GET /pixel HTTP/1.1" 405 -
+ * Detected change in '/home/pi/sharkled/api.py', reloading
+ * Restarting with stat
+192.168.0.104 - - [31/Oct/2015 20:45:47] "GET /pixel HTTP/1.1" 404 -
+ * Detected change in '/home/pi/sharkled/api.py', reloading
+ * Restarting with stat
+ * Running on http://0.0.0.0:9000/ (Press CTRL+C to quit)
+ * Restarting with stat
+192.168.0.103 - - [31/Oct/2015 20:54:18] "POST /pixel HTTP/1.1" 200 -
+Exception in thread Thread-2:
+Traceback (most recent call last):
+  File "/usr/lib/python2.7/threading.py", line 810, in __bootstrap_inner
+    self.run()
+  File "/usr/lib/python2.7/threading.py", line 763, in run
+    self.__target(*self.__args, **self.__kwargs)
+  File "/home/pi/sharkled/LedControl.py", line 59, in setColor
+    ws.set_pixel(p, r, g, b)
+NameError: global name 'ws' is not defined
+
+ * Detected change in '/home/pi/sharkled/LedControl.py', reloading
+ * Restarting with stat
+192.168.0.103 - - [31/Oct/2015 20:55:49] "POST /pixel HTTP/1.1" 200 -
+192.168.0.103 - - [31/Oct/2015 20:56:06] "POST /pixel HTTP/1.1" 200 -
+Exception in thread Thread-4:
+Traceback (most recent call last):
+  File "/usr/lib/python2.7/threading.py", line 810, in __bootstrap_inner
+    self.run()
+  File "/usr/lib/python2.7/threading.py", line 763, in run
+    self.__target(*self.__args, **self.__kwargs)
+  File "/home/pi/sharkled/LedControl.py", line 64, in strobe
+    leds = [ws.get_pixel(d) for d in self.pos]
+  File "build/bdist.linux-armv7l/egg/unicornhat.py", line 80, in get_pixel
+    pixel = ws2812.getPixelColorRGB(index)
+NameError: global name 'index' is not defined
+
+192.168.0.103 - - [31/Oct/2015 20:57:51] "POST /effect/strobe HTTP/1.1" 200 -
+192.168.0.103 - - [31/Oct/2015 21:00:26] "GET /running HTTP/1.1" 200 -
+192.168.0.103 - - [31/Oct/2015 21:00:52] "GET /stop/strobe HTTP/1.1" 200 -
+192.168.0.103 - - [31/Oct/2015 21:01:18] "POST /pixel HTTP/1.1" 200 -
+192.168.0.103 - - [31/Oct/2015 21:01:34] "POST /effect/strobe HTTP/1.1" 200 -
+Exception in thread Thread-6:
+Traceback (most recent call last):
+  File "/usr/lib/python2.7/threading.py", line 810, in __bootstrap_inner
+    self.run()
+  File "/usr/lib/python2.7/threading.py", line 763, in run
+    self.__target(*self.__args, **self.__kwargs)
+  File "/home/pi/sharkled/LedControl.py", line 64, in strobe
+    leds = [ws.get_pixel(d) for d in self.pos]
+  File "build/bdist.linux-armv7l/egg/unicornhat.py", line 80, in get_pixel
+    pixel = ws2812.getPixelColorRGB(index)
+NameError: global name 'index' is not defined
+
+ * Running on http://0.0.0.0:9000/ (Press CTRL+C to quit)
+Traceback (most recent call last):
+  File "api.py", line 205, in <module>
+    app.run(host='0.0.0.0', port=9000, debug=True)
+  File "/usr/local/lib/python2.7/dist-packages/flask/app.py", line 772, in run
+    run_simple(host, port, self, **options)
+  File "/usr/local/lib/python2.7/dist-packages/werkzeug/serving.py", line 618, in run_simple
+    test_socket.bind((hostname, port))
+  File "/usr/lib/python2.7/socket.py", line 224, in meth
+    return getattr(self._sock,name)(*args)
+socket.error: [Errno 98] Address already in use
+ * Running on http://0.0.0.0:9000/ (Press CTRL+C to quit)
+ * Restarting with stat
+192.168.0.103 - - [31/Oct/2015 23:23:47] "GET /test HTTP/1.1" 200 -
+ * Running on http://0.0.0.0:9000/ (Press CTRL+C to quit)
+ * Restarting with stat
+192.168.0.103 - - [31/Oct/2015 23:37:08] "POST /pixel HTTP/1.1" 200 -
+192.168.0.103 - - [31/Oct/2015 23:37:15] "POST /pixel HTTP/1.1" 200 -
+192.168.0.103 - - [31/Oct/2015 23:37:17] "POST /pixel HTTP/1.1" 200 -
+192.168.0.103 - - [31/Oct/2015 23:37:21] "POST /pixel HTTP/1.1" 200 -
+192.168.0.103 - - [31/Oct/2015 23:38:12] "POST /pixel HTTP/1.1" 200 -
+ * Running on http://0.0.0.0:9000/ (Press CTRL+C to quit)
+Traceback (most recent call last):
+  File "api.py", line 206, in <module>
+    app.run(host='0.0.0.0', port=9000, debug=True)
+  File "/usr/local/lib/python2.7/dist-packages/flask/app.py", line 772, in run
+    run_simple(host, port, self, **options)
+  File "/usr/local/lib/python2.7/dist-packages/werkzeug/serving.py", line 618, in run_simple
+    test_socket.bind((hostname, port))
+  File "/usr/lib/python2.7/socket.py", line 224, in meth
+    return getattr(self._sock,name)(*args)
+socket.error: [Errno 98] Address already in use
