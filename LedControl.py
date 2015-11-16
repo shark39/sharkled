@@ -2,83 +2,140 @@ from time import sleep
 import threading
 from threading import Thread
 from time import sleep
+from  datetime import datetime
 from functools import partial
 import sys
-
+from logging import FileHandler, Formatter, getLogger, DEBUG
 
 if sys.platform in ['linux2', 'linux']:
 	## using raspberry
 	RPI = True
 	import unicornhat as ws
 else:
-	#from wsscreen import Stripe 
-	#ws = Stripe() 
+	from wsscreen import Stripe 
+	ws = Stripe() 
 	RPI = False
-	#t = Thread(target=ws.win.mainloop, args=())
-	#t.start()
+	t = Thread(target=ws.win.mainloop, args=())
+	t.start()
 
 
 
 class LEDMaster:
 
-    def __init__(self):
-        
-        self.controllers = []
-
-    def add(self, instance, function, args=(), kwargs={}):
-
-      t = Thread(target=function, args=args)
-      t.start()
-      self.controllers.append((instance, t))
-
-
-    def enumerateControllers(self):
-    	self.controllers = filter(lambda x: not x[0].finish, self.controllers)
-    	#print[c.name for c, x in self.controllers]
-    	return self.controllers
-
-    def drop(self, name, timestamp):
-    	pass
+	def __init__(self):
+		
+		self.controllers = []
+		self.id = 0
+		self.mask = ws.LED_COUNT*[1]
+		self.color = ws.LED_COUNT*[(0,0,0)]
+		self.finish = False
+		self.bufferThread = Thread(target=self.writeBuffer)
+		self.bufferThread.start()
+		## start buffer writing thread
 
 
-    def enumerateThreads(self):
-    	return threading.enumerate()
+	def add(self, name, pos, bufferType, function, args=(), kwargs={}):
 
-    def enumerateControllers(self):
-    	return []
-            
+		self.id += 1
+		t = Thread(target=function, args=(LEDController(name, pos, bufferType, self.setLeds), ) + args)
+		t.start()
+		self.controllers.append((t, self.id))
+
+
+	def enumerateControllers(self):
+		self.controllers = filter(lambda x: not x[0].finish, self.controllers)
+		#print[c.name for c, x in self.controllers]
+		return self.controllers
+
+	def finishController(self, name=None, id=None, mode=None):
+		droplist = []
+		for c, t, i in self.controllers:
+			if not c.finish and name and name==c.name:
+				droplist.append(c)
+		for c in droplist:
+			c.finish = True
+
+
+	def enumerateControllersEffect(self):
+		pass
+
+
+	def enumerateThreads(self):
+		return threading.enumerate()
+
+	def enumerateControllers(self):
+		return []
+
+	def getLeds(self):
+		out = []
+		for i in range(ws.LED_COUNT):
+			out.append(ws.get_pixel(i))
+		return out
+
+	def setLeds(self, controller):
+		print controller
+		for i, pos in enumerate(controller.pos):
+			if controller.bufferType == 'mask':
+				self.mask[pos] = controller.mask[i]
+			if controller.bufferType == 'color':
+				self.color[pos] = controller.color[i]
+				#print 'set led: %i to %s' %(pos, str(controller.color[i]))
+		#self.finish = True
+		#self.writeBuffer()
+
+	def writeBuffer(self):
+		while True:
+			for i, (m, c) in enumerate(zip(self.mask, self.color)):
+				ws.set_pixel(i, int(255*c[0]*m), int(255*c[1]*m), int(255*c[2]*m))
+				#print "write pixel %i: %i %i %i" %(i, 255*c[0]*m, 255*c[1]*m, 255*c[2]*m) 
+				#if sum(c) > 0:
+				#	print "write buffer", i, 255*c[0]*m, 255*c[1]*m, 255*c[2]*m
+			ws.show()
+			if self.finish:
+				break
+			sleep(0.02)
+
+
+			
 
 
 class LEDController:
 
-	def __init__(self, name, pos):
-		self.pos = pos
+	def __init__(self, name, pos, bufferType, setfunc):
 		self.name = name
-		self.leds = pos*[(0,0,0)]
+		self.pos = pos
+		self.bufferType = bufferType
+		self.mask = map(lambda x: 1, pos)
+		self.color = map(lambda x: (0,0,0), pos)
+		self.setfunc = setfunc
+		self.timestamp = datetime.now()
 		self.finish = False
+
+	def __repr__(self):
+		return "LEDController " + self.name + '(' + str(len(self.pos)) + 'leds)'
+
+	def __str__(self):
+		return "LEDController " + self.name + '(' + str(len(self.pos)) + 'leds)'
+
+	def set(self):
+		self.setfunc(self)
+
 
 
 	def setColor(self, r, g, b):
-		for p in self.pos:
-			self.leds[p] = r, g, b
-			ws.set_pixel(p, r, g, b)
-		ws.show()
+		self.color = map(lambda x: (r, g, b), self.color) #len(self.pos) * [(r, g, b)]
+		self.set()
 		self.finish = True
 		
 
 	def strobe(self, frequency):
 		
-		def inPos(i, value):
-			if i in self.pos:
-				return 0, 0, 0
-			return value
-		off_leds = [inPos(p, ws.get_pixel(p)) for p in self.pos]
 		while True:
-			ws.set_pixels(off_leds)
+			self.mask = map(lambda x: 0, self.mask)
+			self.set()
 			sleep(frequency/2)
-			for p, d in zip(self.pos, self.leds):
-				ws.set_pixel(p, *d)
-			ws.show()	
+			self.mask = map(lambda x: 1, self.mask)	
+			self.set()
 			sleep(frequency/2)
 			if self.finish:
 				return
@@ -113,36 +170,18 @@ class LEDController:
 if __name__ == '__main__':
 
 
-
 	master = LEDMaster()
-	c = LEDController('1', range(10))
-	t1 = Thread(target=c.setColor, args=(255, 0, 0))
-	t1.start()
-	print("Number of Threads: ", len(master.enumerateThreads()))
+	master.add(name='color', pos=range(10), bufferType='color', function=LEDController.setColor, args=(1, 0, 0))
+	
+	# for i in range(300):
+	# 	ws.set_pixel(i, 200, 0, 50)
+	# 	ws.set_pixel(i+1, 100, 0, 50)
+	# 	ws.set_pixel(i+2, 0, 0, 100)
 		
-	c = LEDController('1', range(10, 20))
-	t3 = Thread(target=c.setColor, args=(255, 255, 0))
-	t3.start()
-	
-	#print "Number of Threads: ", len(master.enumerateThreads())
+	# 	ws.show()
+	# 	sleep(0.05)
 
-
-	c1 = LEDController('1', range(0, 20))
-	t2 = Thread(target=c1.strobe, args=(3,))
-	t2.start()
-	
-	#print "Number of Threads: ", len(master.enumerateThreads())
-	
-
-	c = LEDController('1', range(10, 30))
-	c.setColor(255, 255, 255)
-	#print "Number of Threads: ", len(master.enumerateThreads())
-
-
-	c = LEDController('1', range(0, 30))
-	t2 = Thread(target=c.strobe, args=(2,))
-	t2.start()
-
-	c1.finishThread()
-	
-		
+	while True:
+		pass
+		#master.finish = True
+			

@@ -49,9 +49,10 @@ def getColor(**kwargs):
 	if 'rgb' in kwargs.keys():
 		return splitrgb(kwargs['rgb'])
 	if 'r' in kwargs.keys() and 'g' in kwargs.keys() and 'b' in kwargs.keys():
-		return int(kwargs['r']), int(kwargs['g']), int(kwargs['b'])
+		return float(kwargs['r']), float(kwargs['g']), float(kwargs['b'])
 	else:
 		raise Exception("Cannot decode color.")
+
 
 
 
@@ -84,6 +85,14 @@ def testthread():
 	c = LEDController('strobe', range(100))
 	master.add(c, c.strobe, (2, ))
 	return getResponse()
+
+
+@app.route('/thingsee', methods=['POST'])
+def thingsee():
+	c = LEDController('pixel'+str(datetime.datetime.now()), range(150))
+	master.add(c, c.setColor, (255, 200, 0))
+	return getResponse()
+	
 
 
 @app.route('/dev/logs/debug')
@@ -126,7 +135,7 @@ def brightness(brightness):
 	return getResponse()
 
 
-@app.route("/pixel", methods=['POST', 'OPTIONS'])
+@app.route("/color", methods=['POST', 'OPTIONS'])
 @auto.doc()
 def set_pixel():
 	'''Parameters: 
@@ -147,10 +156,12 @@ def set_pixel():
 	pos = getPosition(**post)
 	app.logger.debug("Got Position.")
 
-	c = LEDController('pixel'+str(datetime.datetime.now()), pos)
-	master.add(c, c.setColor, (r, g, b))
-	
-	return getResponse()
+	master.add(name='color', pos=pos, bufferType='color', function=LEDController.setColor, args=(r, g, b))
+	return  getResponse('', 204)
+
+@app.route("/dev")
+def dev():
+	raise
 	
 
 
@@ -158,6 +169,12 @@ def set_pixel():
 @auto.doc()
 def set(range_id, scene_id):
 	pass
+
+@app.route("/leds")
+def getLeds():
+
+	return getResponse(jsonify(leds=master.getLeds()))
+
 
 
 
@@ -190,18 +207,15 @@ def strobe():
 	pos = getPosition(**post)
 	frequency = post["frequency"]
 
-	c = LEDController('strobe', pos)
-	master.add(c, c.strobe, (frequency, ))
+	master.add(name='effect-strobe', pos=pos, bufferType='mask', function=LEDController.strobe, args=(0.5, ))
 	return getResponse()
 
-@app.route("/stop/<cname>")
+@app.route("/stop/<cname>", methods=["POST"])
 def stop_thread(cname):
-	out = ''
-	for index, (i, t) in enumerate(master.controllers):
-		if i.name == cname:
-			i.finishThread()
-			master.controllers.pop(index)
-			return getResponse("finished")
+	post = request.get_json()
+	if 'id' in post:
+		master.finishController(id=int(post['id'])) 
+	
 	return getResponse("nothing finished", 200)
 
 

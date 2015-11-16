@@ -9,6 +9,7 @@ def convrgb(r, g, b):
 
 class Stripe:
 	LEDS_COUNT = 150
+	LED_COUNT = LEDS_COUNT
 	scale = 8
 
 	leds = LEDS_COUNT*[convrgb(0, 0, 0)]
@@ -59,11 +60,12 @@ class Stripe:
 
 
 	def set_pixels(self, pixels):
-	    pass
+	    for i in range(self.LEDS_COUNT):
+	    	self.set_pixel(i, pixels[i])
 
 	def get_pixels(self):
 	    """Get the RGB value of all pixels in a 7x7x3 2d array of tuples"""
-	    return #[[get_pixel(x, y) for x in range(8)] for y in range(8)]
+	    return [self.get_pixel(i) for i in range(self.LEDS_COUNT)]
 
 
 	def show(self):
