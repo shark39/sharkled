@@ -47,9 +47,12 @@ def getPosition(areas=None, indexes=None, **kwargs):
 def getColor(**kwargs):
 	app.logger.debug("Got information to decode for color" + str(kwargs))
 	if 'rgb' in kwargs.keys():
-		return splitrgb(kwargs['rgb'])
+		return map(lambda x: 1.0*x/255, splitrgb(kwargs['rgb']))
 	if 'r' in kwargs.keys() and 'g' in kwargs.keys() and 'b' in kwargs.keys():
-		return float(kwargs['r']), float(kwargs['g']), float(kwargs['b'])
+		if any(map(lambda x: x > 1, [float(kwargs['r']), float(kwargs['g']), float(kwargs['b'])])):
+			return float(kwargs['r'])/255, float(kwargs['g'])/255, float(kwargs['b'])/255
+		else:
+			return float(kwargs['r']), float(kwargs['g']), float(kwargs['b'])
 	else:
 		raise Exception("Cannot decode color.")
 
@@ -78,22 +81,11 @@ for logger in loggers:
 ###############
 
 
-@app.route('/test')
-def testthread():
-	c = LEDController('pixel'+str(datetime.datetime.now()), range(100))
-	master.add(c, c.setColor, (255, 255, 0))
-	c = LEDController('strobe', range(100))
-	master.add(c, c.strobe, (2, ))
-	return getResponse()
-
 
 @app.route('/thingsee', methods=['POST'])
 def thingsee():
-	c = LEDController('pixel'+str(datetime.datetime.now()), range(150))
-	master.add(c, c.setColor, (255, 200, 0))
 	return getResponse()
 	
-
 
 @app.route('/dev/logs/debug')
 def debuglogs():
@@ -105,10 +97,33 @@ def requestlogs():
 	with open('nohup.out') as f:
 		return "/n".join(f.read().split('/n')[-5:])
 
+@app.route("/debugger")
+def dev():
+	raise
 
+def shutdown_server():
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is None:
+        raise RuntimeError('Not running with the Werkzeug Server')
+    func()
+
+@app.route('/shutdown', methods=['POST'])
+def shutdown():
+    shutdown_server()
+    return 'Server shutting down...'
+	
 ###############################
 ##############################
 ###############################	
+
+###############################
+## BASICS			###########
+###############################
+
+
+@app.route("/leds")
+def getLeds():
+	return getResponse(jsonify(leds=master.getLeds()))
 
 @app.route("/areas")
 @auto.doc()
@@ -116,7 +131,6 @@ def ranges():
 	'''Returns a json of given ranges'''
 	return getResponse(jsonify(areas=AREAS.keys()), 200)
 	
-
 @app.route("/off")
 @auto.doc()
 def off():
@@ -126,7 +140,9 @@ def off():
 
 @app.route("/running")
 def getThreads():
-	return str([i.name for i, t in master.controllers])
+
+	return getResponse(jsonify(threads=master.enumerateControllers()), 200)
+
 
 @app.route("/brightness/<float:brightness>", methods=["POST"])
 @auto.doc()
@@ -134,6 +150,25 @@ def brightness(brightness):
 	#TODO ws.brightness(brightness)
 	return getResponse()
 
+
+@app.route("/stop", methods=["POST"])
+@auto.doc()
+def stop_thread():
+	'''stopps the running controller
+	Parameters: name or id'''
+	post = request.get_json()
+	app.logger.debug("stop %s" %str(post))
+	if 'id' in post.keys():
+		app.logger.debug("finish controller %s" %str(post['id']))
+		master.finishController(cid=int(post['id'])) 
+	if 'name' in post.keys():
+		master.finishController(name=post["name"])
+	return getResponse("finished", 200)
+
+
+#################
+#################
+#################
 
 @app.route("/color", methods=['POST', 'OPTIONS'])
 @auto.doc()
@@ -156,27 +191,13 @@ def set_pixel():
 	pos = getPosition(**post)
 	app.logger.debug("Got Position.")
 
-	master.add(name='color', pos=pos, bufferType='color', function=LEDController.setColor, args=(r, g, b))
-	return  getResponse('', 204)
-
-@app.route("/dev")
-def dev():
-	raise
-	
+	lid = master.add(name='color', pos=pos, bufferType='color', function=LEDController.setColor, args=(r, g, b))
+	return  getResponse(jsonify(id=lid, name='color'), 201)
 
 
-@app.route("/scene", methods=['POST'])
-@auto.doc()
-def set(range_id, scene_id):
-	pass
-
-@app.route("/leds")
-def getLeds():
-
-	return getResponse(jsonify(leds=master.getLeds()))
-
-
-
+####################
+## Effects
+####################
 
 
 @app.route("/effect/pulsate", methods=['POST', 'OPTIONS'])
@@ -194,8 +215,10 @@ def pulsate():
 
 	post = request.get_json()
 	pos = getPosition(**post)
-	
-	return getResponse()
+
+	lid = master.add(name='effect-pulse', pos=pos, bufferType='mask', function=LEDController.pulsate)
+	return getResponse(jsonify(id=lid, name='effect-pulse'), 201)
+
 
 
 @app.route("/effect/strobe", methods=['POST', 'OPTIONS'])
@@ -205,20 +228,58 @@ def strobe():
 
 	post = request.get_json()
 	pos = getPosition(**post)
-	frequency = post["frequency"]
+	try:
+		frequency = float(post["frequency"])
+	except:
+		return getResponse('invalid parameter for frequency', 400)
 
-	master.add(name='effect-strobe', pos=pos, bufferType='mask', function=LEDController.strobe, args=(0.5, ))
-	return getResponse()
+	lid = master.add(name='effect-strobe', pos=pos, bufferType='mask', function=LEDController.strobe, args=(frequency, ))
+	return getResponse(jsonify(id=lid, name='effect-strobe'), 201)
 
-@app.route("/stop/<cname>", methods=["POST"])
-def stop_thread(cname):
+
+@app.route("/effect/chase", methods=['POST', 'OPTIONS'])
+def chase():
+	if request.method == 'OPTIONS':
+		return getResponse()
+
 	post = request.get_json()
-	if 'id' in post:
-		master.finishController(id=int(post['id'])) 
-	
-	return getResponse("nothing finished", 200)
+	pos = getPosition(**post)
+
+	pause = post["pause"]
+	width = post["width"]
+	lid = master.add(name='effect-chase', pos=pos, bufferType='mask', function=LEDController.chase, args=(pause, width))
+	return getResponse(jsonify(id=lid, name='effect-chase', parameters=master.getControllerParameters(lid)), 201)
 
 
+## reset
+@app.route("/reset", methods=['POST', 'OPTIONS'])
+@auto.doc()
+def reset():
+	'''finish all led controllers and set color and mask to default'''
+	if request.method == 'OPTIONS':
+		return getResponse()
+	master.reset()
+	return getResponse('', 204)
+
+@app.route("/clear", methods=['POST', 'OPTIONS'])
+def clear():
+	'''set mask and color to default'''
+	if request.method == 'OPTIONS':
+		return getResponse()
+	master.clear()
+	return getResponse('', 204)
+
+
+@app.route("/adjust/<int:cid>", methods=['POST', 'OPTIONS'])
+def adjust(cid):
+	if request.method == 'OPTIONS':
+		return getResponse()
+
+	post = request.get_json()
+
+	controller = master.getController(cid)
+	controller.parameters = post
+	return getResponse('', 204)
 
 @app.route('/docs')
 def documentation():
@@ -226,5 +287,5 @@ def documentation():
 
 if __name__ == '__main__':
 	
-	app.run(host='0.0.0.0', port=9000, debug=True)
+	app.run(host='0.0.0.0', port=9000, debug=False)
 	

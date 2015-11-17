@@ -5,7 +5,8 @@ from time import sleep
 from  datetime import datetime
 from functools import partial
 import sys
-from logging import FileHandler, Formatter, getLogger, DEBUG
+import logging
+
 
 if sys.platform in ['linux2', 'linux']:
 	## using raspberry
@@ -16,46 +17,74 @@ else:
 	ws = Stripe() 
 	RPI = False
 	t = Thread(target=ws.win.mainloop, args=())
-	t.start()
+	#t.start()
 
 
+logging.basicConfig(filename='ledcontrol.log',level=logging.DEBUG)
 
 class LEDMaster:
 
 	def __init__(self):
 		
-		self.controllers = []
+		self.controllers = {}
 		self.id = 0
 		self.mask = ws.LED_COUNT*[1]
 		self.color = ws.LED_COUNT*[(0,0,0)]
 		self.finish = False
 		self.bufferThread = Thread(target=self.writeBuffer)
 		self.bufferThread.start()
+		#self.bufferThread.join()
 		## start buffer writing thread
 
 
 	def add(self, name, pos, bufferType, function, args=(), kwargs={}):
 
 		self.id += 1
-		t = Thread(target=function, args=(LEDController(name, pos, bufferType, self.setLeds), ) + args)
+		c = LEDController(name, pos, bufferType, self.setLeds)
+		t = Thread(target=function, args=(c, ) + args)
+		#t.setDeamon()
 		t.start()
-		self.controllers.append((t, self.id))
+		self.controllers[self.id] = c
+		logging.debug("added new controller %s" %str(self.controllers))
+		return self.id
+
+	def getController(self, cid):
+		return self.controllers[cid]
+
+	def getControllerParameters(self, cid):
+		return self.controllers[cid].parameters
+
+	def reset(self):
+		for c in self.controllers.values():
+			c.finish = True
+		self.controllers = {}
+		self.id = 0
+		self.mask = ws.LED_COUNT*[1]
+		self.color = ws.LED_COUNT*[(0,0,0)]
+
+	def clear(self):
+		self.mask = ws.LED_COUNT*[1]
+		self.color = ws.LED_COUNT*[(0,0,0)]
 
 
 	def enumerateControllers(self):
-		self.controllers = filter(lambda x: not x[0].finish, self.controllers)
+		
 		#print[c.name for c, x in self.controllers]
-		return self.controllers
+		return self.controllers.items()
 
-	def finishController(self, name=None, id=None, mode=None):
+	def finishController(self, name=None, cid=None, mode=None):
 		droplist = []
-		for c, t, i in self.controllers:
-			if not c.finish and name and name==c.name:
+		for i, c in self.controllers.items():
+			if c.finish:
+				continue
+			if name and name==c.name:
 				droplist.append(c)
+			if cid and cid == i:
+				droplist.append(c) 
 		for c in droplist:
 			c.finish = True
 
-
+	
 	def enumerateControllersEffect(self):
 		pass
 
@@ -63,9 +92,7 @@ class LEDMaster:
 	def enumerateThreads(self):
 		return threading.enumerate()
 
-	def enumerateControllers(self):
-		return []
-
+	
 	def getLeds(self):
 		out = []
 		for i in range(ws.LED_COUNT):
@@ -73,23 +100,16 @@ class LEDMaster:
 		return out
 
 	def setLeds(self, controller):
-		print controller
 		for i, pos in enumerate(controller.pos):
 			if controller.bufferType == 'mask':
 				self.mask[pos] = controller.mask[i]
 			if controller.bufferType == 'color':
 				self.color[pos] = controller.color[i]
-				#print 'set led: %i to %s' %(pos, str(controller.color[i]))
-		#self.finish = True
-		#self.writeBuffer()
-
+				
 	def writeBuffer(self):
 		while True:
 			for i, (m, c) in enumerate(zip(self.mask, self.color)):
 				ws.set_pixel(i, int(255*c[0]*m), int(255*c[1]*m), int(255*c[2]*m))
-				#print "write pixel %i: %i %i %i" %(i, 255*c[0]*m, 255*c[1]*m, 255*c[2]*m) 
-				#if sum(c) > 0:
-				#	print "write buffer", i, 255*c[0]*m, 255*c[1]*m, 255*c[2]*m
 			ws.show()
 			if self.finish:
 				break
@@ -97,8 +117,6 @@ class LEDMaster:
 
 
 			
-
-
 class LEDController:
 
 	def __init__(self, name, pos, bufferType, setfunc):
@@ -110,6 +128,7 @@ class LEDController:
 		self.setfunc = setfunc
 		self.timestamp = datetime.now()
 		self.finish = False
+		self.parameters = {}
 
 	def __repr__(self):
 		return "LEDController " + self.name + '(' + str(len(self.pos)) + 'leds)'
@@ -118,18 +137,29 @@ class LEDController:
 		return "LEDController " + self.name + '(' + str(len(self.pos)) + 'leds)'
 
 	def set(self):
+		'''call the set function to commit the color or mask array to the master'''
 		self.setfunc(self)
 
+	def asParameters(self, **kwargs):
+		self.parameters = kwargs
 
+	def getParameters(self, *args):
+		out = []
+		for a in args:
+			out.append(self.parameters[a])
+		return out
 
 	def setColor(self, r, g, b):
+		'''set the color. r, g, b must be between 0 and 1.
+		[implementation finished]'''
 		self.color = map(lambda x: (r, g, b), self.color) #len(self.pos) * [(r, g, b)]
 		self.set()
 		self.finish = True
 		
 
 	def strobe(self, frequency):
-		
+		'''turn on and off again during a cycle of frequency 
+		[implementation finished]'''
 		while True:
 			self.mask = map(lambda x: 0, self.mask)
 			self.set()
@@ -140,18 +170,41 @@ class LEDController:
 			if self.finish:
 				return
 
+	def chase(self, pause=0.1, width=1):
+		'''under development, lauflicht'''
+		logging.debug("call chase")
+		self.asParameters(pause=pause, width=width)
+		self.mask = map(lambda x: 0, self.mask)
+		i = 0
+		direction = 1
+		while True:
+			pause, width = self.getParameters('pause', 'width')
+			self.mask = map(lambda x: 0, self.mask)
+			self.mask[i:i+width] = width*[1]
+			if i+width == len(self.mask)-1:
+				direction = -1
+			if i == 0:
+				direction = 1
+			i += direction
+			if self.finish:
+				break
+			self.set()
+			sleep(pause)
+
+
+
 
 	def pulsate(self):
-		pos = range(1)
-		for t in range(300): ## damits stoppt
-			for i, p in enumerate(pos):
-				## in hsv umrechnen
-				h, s, v = colorsys.rgb_to_hsv(*ws.get_pixel(p))
-				## mit sin(ID) multiplizieren
-				new_h = (math.sin(i*2*math.pi/len(pos))+1)/2*h
-				ws.set_pixel_hsv(p, new_h, s, v)
-			ws.show()
-			sleep(0.1)
+		'''test, not working (yet)'''
+		def conv(i, x):
+			if x == 1:
+				return 0
+			return x+0.1
+		while True:
+			self.mask = map(conv, enumerate(self.mask))
+			sleep(0.5)
+			if self.finish:
+				break
 
 
 	def finishThread(self):
@@ -171,7 +224,9 @@ if __name__ == '__main__':
 
 
 	master = LEDMaster()
-	master.add(name='color', pos=range(10), bufferType='color', function=LEDController.setColor, args=(1, 0, 0))
+	id1 = master.add(name='color', pos=range(10), bufferType='color', function=LEDController.setColor, args=(1, 0, 0))
+	id2 = master.add(name='strobe', pos=range(5), bufferType='mask', function=LEDController.strobe, args=(3,))
+	master.exitThread(id2)
 	
 	# for i in range(300):
 	# 	ws.set_pixel(i, 200, 0, 50)
