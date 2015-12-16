@@ -6,6 +6,9 @@ from  datetime import datetime
 from functools import partial
 import sys
 import logging
+import random
+
+from timer import Timer
 
 
 if sys.platform in ['linux2', 'linux']:
@@ -171,12 +174,13 @@ class LEDController:
 				return
 
 	def chase(self, pause=0.1, width=1):
-		'''under development, lauflicht'''
+		'''working, so sweet'''
 		logging.debug("call chase")
 		self.asParameters(pause=pause, width=width)
 		self.mask = map(lambda x: 0, self.mask)
 		i = 0
 		direction = 1
+		timer = Timer()
 		while True:
 			pause, width = self.getParameters('pause', 'width')
 			self.mask = map(lambda x: 0, self.mask)
@@ -189,8 +193,24 @@ class LEDController:
 			if self.finish:
 				break
 			self.set()
-			sleep(pause)
+			timer.wait(sec=pause)
 
+	def partyblink(self, pause=0.5, width=1):
+		'''not working, so sweet anyway'''
+		logging.debug("call partyblink")
+		self.asParameters(pause=pause, width=width)
+		self.color = map(lambda x: 0, self.color)
+		i = 0
+		timer = Timer()
+		while True:
+			timer.start()
+			pause, width = self.getParameters('pause', 'width')
+			for i in range(len(self.color)):
+				if i % width == 0:
+					r, g, b = random.random(), random.random(), random.random()
+				self.color[i] = (r, g, b) 
+			self.set()
+			timer.wait(sec=pause)
 
 
 

@@ -251,6 +251,21 @@ def chase():
 	return getResponse(jsonify(id=lid, name='effect-chase', parameters=master.getControllerParameters(lid)), 201)
 
 
+@app.route("/effect/partyblink", methods=['POST', 'OPTIONS'])
+def partyblink():
+	if request.method == 'OPTIONS':
+		return getResponse()
+
+	post = request.get_json()
+	pos = getPosition(**post)
+
+	pause = post["pause"]
+	width = post["width"]
+	lid = master.add(name='effect-partyblink', pos=pos, bufferType='color', function=LEDController.partyblink, args=(pause, width))
+	return getResponse(jsonify(id=lid, name='effect-partyblink', parameters=master.getControllerParameters(lid)), 201)
+
+
+
 ## reset
 @app.route("/reset", methods=['POST', 'OPTIONS'])
 @auto.doc()
