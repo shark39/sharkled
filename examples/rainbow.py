@@ -16,7 +16,7 @@ offset = 30
 while True:
         i = i + 0.3
         x = 1
-        for y in range(150):
+        for y in range(450):
                 r = 0#x * 32
                 g = 0#y * 32
                 r = (math.cos((x+i)/2.0) + math.cos((y+i)/2.0)) * 64.0 + 128.0

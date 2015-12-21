@@ -1,9 +1,8 @@
-
+import signal
 import sys
 import colorsys
 import math
 import datetime
-import threading
 from functools import partial
 from time import sleep
 from logging import FileHandler, Formatter, getLogger, DEBUG
@@ -141,7 +140,7 @@ def off():
 @app.route("/running")
 def getThreads():
 
-	return getResponse(jsonify(threads=master.enumerateControllers()), 200)
+	return getResponse(jsonify(controllers=master.enumerateControllers()), 200)
 
 
 @app.route("/brightness/<float:brightness>", methods=["POST"])
@@ -151,20 +150,14 @@ def brightness(brightness):
 	return getResponse()
 
 
-@app.route("/stop", methods=["POST"])
+@app.route("/stop/<int:cid>", methods=["POST"])
 @auto.doc()
-def stop_thread():
+def stop_controller():
 	'''stopps the running controller
 	Parameters: name or id'''
-	post = request.get_json()
-	app.logger.debug("stop %s" %str(post))
-	if 'id' in post.keys():
-		app.logger.debug("finish controller %s" %str(post['id']))
-		master.finishController(cid=int(post['id'])) 
-	if 'name' in post.keys():
-		master.finishController(name=post["name"])
+	app.logger.debug("finish controller %i" %cid)
+	master.finishControllerById(cid) 
 	return getResponse("finished", 200)
-
 
 #################
 #################
@@ -191,7 +184,7 @@ def set_pixel():
 	pos = getPosition(**post)
 	app.logger.debug("Got Position.")
 
-	lid = master.add(name='color', pos=pos, bufferType='color', function=LEDController.setColor, args=(r, g, b))
+	lid = master.add(name='color', pos=pos, bufferType='color', function=LEDController.setColor, parameters={'r': r, 'g': g, 'b': b})
 	return  getResponse(jsonify(id=lid, name='color'), 201)
 
 
@@ -200,70 +193,18 @@ def set_pixel():
 ####################
 
 
-@app.route("/effect/pulsate", methods=['POST', 'OPTIONS'])
-def pulsate():
-	'''Adds a pulsation to the current light
-	Parameter: 
-	areas or indexes
 
-	speed/frequency
-	intensity
-	patter (default:sinus)
-	parameter: v or s (Helligkeit oder Saettigung)'''
+@app.route("/<buffertype>/<name>", methods=['POST', 'OPTIONS'])
+def effect2(buffertype, name):
 	if request.method == 'OPTIONS':
 		return getResponse()
 
 	post = request.get_json()
 	pos = getPosition(**post)
+	pname = 'effect-' + name
 
-	lid = master.add(name='effect-pulse', pos=pos, bufferType='mask', function=LEDController.pulsate)
-	return getResponse(jsonify(id=lid, name='effect-pulse'), 201)
-
-
-
-@app.route("/effect/strobe", methods=['POST', 'OPTIONS'])
-def strobe():
-	if request.method == 'OPTIONS':
-		return getResponse()
-
-	post = request.get_json()
-	pos = getPosition(**post)
-	try:
-		frequency = float(post["frequency"])
-	except:
-		return getResponse('invalid parameter for frequency', 400)
-
-	lid = master.add(name='effect-strobe', pos=pos, bufferType='mask', function=LEDController.strobe, args=(frequency, ))
-	return getResponse(jsonify(id=lid, name='effect-strobe'), 201)
-
-
-@app.route("/effect/chase", methods=['POST', 'OPTIONS'])
-def chase():
-	if request.method == 'OPTIONS':
-		return getResponse()
-
-	post = request.get_json()
-	pos = getPosition(**post)
-
-	pause = post["pause"]
-	width = post["width"]
-	lid = master.add(name='effect-chase', pos=pos, bufferType='mask', function=LEDController.chase, args=(pause, width))
-	return getResponse(jsonify(id=lid, name='effect-chase', parameters=master.getControllerParameters(lid)), 201)
-
-
-@app.route("/effect/partyblink", methods=['POST', 'OPTIONS'])
-def partyblink():
-	if request.method == 'OPTIONS':
-		return getResponse()
-
-	post = request.get_json()
-	pos = getPosition(**post)
-
-	pause = post["pause"]
-	width = post["width"]
-	lid = master.add(name='effect-partyblink', pos=pos, bufferType='color', function=LEDController.partyblink, args=(pause, width))
-	return getResponse(jsonify(id=lid, name='effect-partyblink', parameters=master.getControllerParameters(lid)), 201)
-
+	lid = master.add(name=pname, pos=pos, bufferType=buffertype, function=getattr(LEDController, name), parameters=post['parameters'])
+	return getResponse(jsonify(id=lid, name=pname,  parameters=master.getControllerParameters(lid)), 201)
 
 
 ## reset
@@ -301,6 +242,10 @@ def documentation():
 	return auto.html()
 
 if __name__ == '__main__':
-	
+	def signal_handler(signal, frame):
+	    master.finish = True
+	    sys.exit(0)
+	signal.signal(signal.SIGINT, signal_handler)
 	app.run(host='0.0.0.0', port=9000, debug=False)
+		
 	

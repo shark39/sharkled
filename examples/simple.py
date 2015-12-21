@@ -2,11 +2,10 @@
 
 import unicornhat as UH
 import time
-
-for y in range(8):
-  for x in range(8):
-    UH.set_pixel(x,y,255,0,255)
-    UH.show()
-    time.sleep(0.05)
-
-time.sleep(1)
+while True:
+	for y in range(600):
+	    UH.set_pixel(y,255,255,255)
+	UH.show()
+	for y in range(600):
+	    UH.set_pixel(y,0,0,0)
+	UH.show()
