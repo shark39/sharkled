@@ -140,7 +140,7 @@ def off():
 @app.route("/running")
 def getThreads():
 
-	return getResponse(jsonify(controllers=master.enumerateControllers()), 200)
+	return getResponse(jsonify(controllers=master.controllers.items()), 200)
 
 
 @app.route("/brightness/<float:brightness>", methods=["POST"])
@@ -194,17 +194,13 @@ def set_pixel():
 
 
 
-@app.route("/<buffertype>/<name>", methods=['POST', 'OPTIONS'])
-def effect2(buffertype, name):
+@app.route("/effect/<name>", methods=['POST', 'OPTIONS'])
+def effect2(name):
 	if request.method == 'OPTIONS':
 		return getResponse()
-
 	post = request.get_json()
-	pos = getPosition(**post)
-	pname = 'effect-' + name
-
-	lid = master.add(name=pname, pos=pos, bufferType=buffertype, function=getattr(LEDController, name), parameters=post['parameters'])
-	return getResponse(jsonify(id=lid, name=pname,  parameters=master.getControllerParameters(lid)), 201)
+	lid = master.add(name=name, parameters=post)
+	return getResponse(jsonify(id=lid, name=name, parameters=master.getControllerParameters(lid)), 201)
 
 
 ## reset

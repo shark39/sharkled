@@ -9,7 +9,9 @@ import random
 import math
 import colorsys
 import collections
+import re
 
+from constants import *
 from timer import Timer
 
 
@@ -31,125 +33,131 @@ class LEDMaster:
 
 	def __init__(self):
 		
-		self.sleeptime = 30 #ms
+		self.framerate = 30 #ms
+		self.actualframerate = 30 #ms
 		self.controllers = {}
-		self.mask = ws.LED_COUNT*[1]
-		self.color = ws.LED_COUNT*[(0,0,0)]
 		self.finish = False
 		self.bufferThread = Thread(target=self.writeBuffer)
 		self.bufferThread.start()
 		
 
-	def add(self, name, pos, bufferType, function, parameters={}):
+	def add(self, name, parameters={}):
+		'''adds or updates the controller indentified by name 
+		'''
 		compare = lambda x, y: collections.Counter(x) == collections.Counter(y)
 		id = -1
-		for i, controller in self.controllers.iteritems():
-			if controller.name == name and compare(pos,controller.pos):
+		for i, controller in self.controllers.iteritems(): # update controller if areas are the same
+			if controller.name == name and compare(parameters.get('areas'), controller.parameters.get('areas')):
 				controller.parameters = parameters
 				id = controller.id
-		if id < 0:
-			c = LEDController(name, pos, bufferType, function, parameters, self)
+				logging.debug("updated controller %s" %str(self.controllers))
+		if id < 0: # if no matches: create new controller
+			c = LEDController(name, parameters)
 			self.controllers[c.id] = c
 			id = c.id
 			logging.debug("added new controller %s" %str(self.controllers))
 		return id
 
 	def getController(self, cid):
+		''' returns an instance of LEDController'''
 		return self.controllers[cid]
 
 	def getControllerParameters(self, cid):
+		'''return dictionary with corresponding parameters'''
 		return self.controllers[cid].parameters
 
 	def reset(self):
+		''' deletes all controllers and set everything to black'''
 		self.controllers = {}
 		self.id = 0
 		self.clear()
 
 	def clear(self):
-		self.mask = ws.LED_COUNT*[1]
-		self.color = ws.LED_COUNT*[(0,0,0)]
+		'''set everything to black'''
+		self.buffer = LEDS_COUNT*[(0, 0, 0, 1)]
 
 
-	def enumerateControllers(self):
-		return self.controllers.iteritems()
 
 	def finishControllerById(self, cid):
+		'''removes the corresponding controller'''
 		del self.controllers[cid]
 
 	def getLeds(self):
+		'''returns 3-tupels of the current state of the leds'''
 		out = []
-		for i in range(ws.LED_COUNT):
+		for i in range(LEDS_COUNT):
 			out.append(ws.get_pixel(i))
 		return out
+
+	def getTimestamp(self):
+		'''returns milliseconds as integer'''
+		return int(time.time()*1000)
 				
 	def writeBuffer(self):
-		print 'start write buffer'
+		'''this function is running in an extra thread
+		execute the effect function of the LEDControllers and set the pixels
+		'''
+		mixInto = lambda base, mix: map(lambda (b, m) : b*(1-mix[3])+m*mix[3], zip(base, mix)) ## interpolate with alpha value of mix
+		self.buffer = LEDS_COUNT*[[0,0,0]]
 		while True:
-			timestamp = int(time.time()*1000)
-			mixTypeRank = ['min', 'avg', 'max', 'notme', 'onlyme']
-			controllers = sorted(self.controllers.iteritems(), key=lambda (i,c): mixTypeRank.index(c.mixType))
-			#because of thread problems fetching before iterating is important
-			for i, controller in controllers:
-				if controller.paused: pass
-				buffer = controller.effect(timestamp + controller.offset)
-				for i, pos in enumerate(controller.pos):
-			#		if controller.bufferType == 'mask':
-			#			self.mask[pos] = buffer[i]
-			#		if controller.bufferType == 'color':
-				#		self.color[pos] = buffer[i]
-				#for i, value in enumerate(buffer):
-					if controller.bufferType == 'mask':
-						if controller.mixType == 'notme':
-							if(self.mask[pos] == -1): self.mask[pos] = buffer[i]
-						elif controller.mixType == 'onlyme':
-							self.mask[pos] = buffer[i]
-						elif controller.mixType == 'max':
-							self.mask[pos] = max(self.mask[pos],buffer[i])
-						elif controller.mixType == 'min':
-							self.mask[pos] = min(self.mask[pos],buffer[i])
-						elif controller.mixType == 'avg':
-							self.mask[pos] = (self.mask[pos] + buffer[i]) /2
-					elif controller.bufferType == 'color':
-						if controller.mixType == 'notme':
-							if(self.color[pos] == -1): self.color[pos] = buffer[i]
-						elif controller.mixType == 'onlyme':
-							self.color[pos] = buffer[i]
-						elif controller.mixType == 'max':
-							self.color[pos] = max(self.color[pos],buffer[i], key=sum)
-						elif controller.mixType == 'min':
-							self.color[pos] = min(self.color[pos],buffer[i], key=sum)
-						elif controller.mixType == 'avg':
-							for colori in range(3):
-								self.color[pos][colori] = int((self.color[pos][colori] + buffer[i][colori]) / 2)
-
-			for i, (m, c) in enumerate(zip(self.mask, self.color)):
-				ws.set_pixel(i, int(255*c[0]*m), int(255*c[1]*m), int(255*c[2]*m))
-
-			ws.show()
 			if self.finish:
 				break
-			timestampNow = int(time.time()*1000)
-			wait = (self.sleeptime - (timestampNow - timestamp))
+			timestamp = self.getTimestamp()
+			controllers = sorted(self.controllers.values(), key=lambda c: (c.parameters.get('z') or 0, c.id)) #because of thread problems fetching before iterating is important
+			for controller in controllers:
+				if controller.paused: continue
+				buffers = controller.effect(timestamp + controller.offset)
+				for (buffer, pos) in buffers:
+					for i, pos in enumerate(pos):
+						if buffer[i][3] == 0: continue
+						elif buffer[i][3] == 1: self.buffer[pos] = buffer[i]
+						else: self.buffer[pos] = mixInto(self.buffer[pos], buffer[i])		
+			skip = 0
+			for i, c in enumerate(self.buffer):
+				if i in DEFECTLEDS:
+					skip += 1
+				else:
+					ws.set_pixel(i - skip, int(255*c[0]), int(255*c[1]), int(255*c[2]))
+			ws.show()
+			timestampNow = self.getTimestamp()
+			wait = (self.actualframerate - (timestampNow - timestamp))
 			if wait > 0:
 				time.sleep(wait / 1000.0)
-			
-
-
+				if wait > 10: 
+					self.actualframerate = max(self.actualframerate - 10,self.framerate)
+			else:
+				self.actualframerate += 10
 			
 class LEDController:
 	id = 0
-	def __init__(self, name, pos, bufferType, function, parameters, master):
+	def __init__(self, name, parameters):
 		self.name = name
-		self.pos = pos
 		LEDController.id += 1
-		self.bufferType = bufferType
-		self.function = function
 		self.paused = False
-		self.master = master
+		self.updateParameters(parameters)
+
+	def updateParameters(self, parameters):
 		self.parameters = parameters
-		self.mixType = parameters.get('mixType') or 'max' ## max min avg onlyme notme
+		self.areas = parameters.get('areas') or 'all'
+		self.pos = self.resolve(self.areas)
 		self.offset = parameters.get('offset') or 0
 		if self.offset == '-1': self.offset = - int(time.time()*1000)
+
+	def resolve(self, areas):
+		pos = []
+		for a in areas:
+			matches = re.search(r'([^\[]*)(\[.+\])?', a).groups() # split between ':'
+			resolved = AREAS[matches[0]]
+			if type(resolved[0]) == str:
+				index = (matches[1] or '')[1:-1]
+				indexes = index.split(':')
+				cleanIndexes = [None] * 3
+				for i in range(len(indexes)):
+					cleanIndexes[i] = int(indexes[i]) if indexes[i] != '' else None
+				pos += self.resolve(resolved)[cleanIndexes[0]:cleanIndexes[1]:cleanIndexes[2]]
+			else:
+				pos.append(resolved)
+		return pos
 
 	def __repr__(self):
 		return "LEDController " + self.name + '(' + str(len(self.pos)) + 'leds)'
@@ -157,70 +165,83 @@ class LEDController:
 	def __str__(self):
 		return "LEDController " + self.name + '(' + str(len(self.pos)) + 'leds)'
 
-	def set(self, buffer):
-		'''write buffer in the corresponding master'''
-		for i, p in enumerate(self.pos):
-			if self.bufferType == 'color':
-				self.master.color[p] = buffer[i]
-			elif self.bufferType == 'mask':
-				self.master.mask[p] = buffer[i]
-
 	def effect(self, ts):
-		return self.function(self, ts)		
+		mergeType = self.parameters.get('mergeType') or 'concat'
+		pos = []
+		if mergeType == 'concat':
+			for array in self.pos:
+				pos += array
+			return [(getattr(self, self.name)(ts, pos), pos)]	
+		elif mergeType == 'syncro':
+			buffers = []
+			for array in self.pos:
+				buffers.append((getattr(self, self.name)(ts, array), array))
+			return buffers
 
-	def color(self, ts):
+	def mixInto(self, base, mix):
+		if len(base) < 4: base.append(1)
+		if len(mix) < 4: mix.append(1) 
+		if base[3] == 0: return mix
+		if mix[3] == 0: return base
+		return map(lambda (b, m): b*base[3]*(1-mix[3])+m*mix[3], zip(base, mix)) ## interpolate with alpha value of mix
+		
+	def color(self, ts, pos):
 		'''set the color. r, g, b must be between 0 and 1.
 		[implementation finished]'''
 		color = self.parameters.get('color') or [1,0,0]
-		return len(self.pos) * [color]
-	
-	def mask(self, ts):
-		mask = self.parameters.get('mask') or len(self.pos) * [1]
-		return mask
+		if len(color) == 3: color.append(1)
+		return len(pos) * [color]
 
-	def colorSequence(self, ts):
+	def sequence(self, ts, pos):
 		'''set the color. r, g, b must be between 0 and 1.
 		[implementation finished]'''
 		interval = self.parameters.get('interval') or 1000
 		sequence = self.parameters.get('sequence') or [[1,0,0],[0,1,0],[0,0,1]]
 		fadeSpeed = self.parameters.get('fadeSpeed') or 0
+		fadeSpeed = fadeSpeed * interval
 		sinceLast = ts % interval; 
 
 		step = (ts % (interval*len(sequence))) / interval
-		color = sequence[step]		
+		color = sequence[step]
+		if len(color) == 3: color.append(1)		
 		if fadeSpeed > 0:
 			fadeCorrection = (fadeSpeed - sinceLast) / float(fadeSpeed)
 			if fadeCorrection >= 0 and fadeCorrection <= 1:
-				for i in range(3):
+				for i in range(4):
 					color[i] = (fadeCorrection * sequence[step-1][i] + (1 - fadeCorrection) * sequence[step][i])
-		return len(self.pos) * [color]
-		
-	def strobe(self, ts):
-		'''turn on and off again during a cycle of frequency 
-		[implementation finished]'''
-		interval = self.parameters['interval']
-		brightness = int(ts % interval < (interval / 2))
-		return [brightness] * len(self.pos)
-		
+		return len(pos) * [color]		
 
-	def chase(self, ts):
-		length = len(self.pos)
-
-		interval = (self.parameters.get('interval') or 1000) * length
+	def chase(self, ts, pos):
+		length = len(pos)
+		interval = (self.parameters.get('interval') or 10) * length
+		count = self.parameters.get('count') or 1
 		width = self.parameters.get('width') or 5
-		softWidth = self.parameters.get('softWidth') or 0
-		position = int(length / (interval / float((ts % interval) + 1)))
-		mask = [0] * len(self.pos)
-		for i in range(-softWidth, width + softWidth):
-			mask[(position + i) % length] = 1
-			if i < 0:
-				mask[(position + i) % length] = 1 + (i / float(softWidth))
-			if i >= width:
-				mask[(position + i) % length] = 1 - ((i-width) / float(softWidth))
-		return mask
+		if type(width) == float: 
+			width = int(width * length)
+		soft = self.parameters.get('soft') or 0
+		if type(soft) == float: 
+			soft = int(soft * width)
+		color = self.parameters.get('color') or [1,1,1]
+		background = self.parameters.get('background') or [0,0,0,0]
+		if len(color) == 3: color.append(1)
+		if len(background) == 3: background.append(1)
 
-	def bucketColor(self, ts):
-		length = len(self.pos)
+		position = int(length / (interval / float((ts % interval) + 1)))
+		buffer = [background] * length
+		for i in range(-soft, width + soft):
+			if i < 0:
+				alpha = 1 + (i / float(soft))
+			elif i >= width:
+				alpha = 1 - ((i-width) / float(soft))
+			else:
+				alpha = 1
+			for j in range(0, length, length / count):
+				buffer[(position + i + j) % length] = \
+					self.mixInto(buffer[(position + i + j) % length], color[:3] + [(color[3] + alpha) / 2])
+		return buffer
+
+	def bucketColor(self, ts, pos):
+		length = len(pos)
 		interval = self.parameters.get('interval') or 1000
 		colors = self.parameters.get('colors') or [[1,0,0],[0,1,0],[0,0,1],[0,0,0]]
 		bucketSize = self.parameters.get('bucketSize') or 1
@@ -236,8 +257,8 @@ class LEDController:
 			self.colormap = colormap
 		return self.colormap
 
-	def rainbow(self, ts):
-		length = len(self.pos)
+	def rainbow(self, ts, pos):
+		length = len(pos)
 		interval = self.parameters.get('interval') or 1000
 		wavelength = self.parameters.get('wavelength') or length
 		relativeInterval = ((ts % interval) / float(interval))
@@ -247,16 +268,23 @@ class LEDController:
 			colormap.append(colorsys.hsv_to_rgb(pos + relativeInterval, 1.0, 1.0))
 		return colormap
 
-	def pulsate(self, ts):
-		length = len(self.pos)
+	def pulsate(self, ts, pos):
+		length = len(pos)
 		interval = self.parameters.get('interval') or 1000
 		wavelength = self.parameters.get('wavelength') or length
+		if type(wavelength) == float:
+			wavelength = int(wavelength * length)
+		color = self.parameters.get('color') or [1,1,1,1]
+		background = self.parameters.get('background') or [0,0,0,0]
 		relativeInterval = ((ts % interval) / float(interval))
-		mask = []
+		if len(color) == 3: color.append(1)
+		if len(background) == 3: background.append(1)
+		buffer = []
 		for i in range(length):
 			pos = (i / float(wavelength))
-			mask.append(0.5 + 0.5*math.sin((pos + relativeInterval - 0.25) * 2 * math.pi))
-		return mask
+			alpha = 0.5 + 0.5*math.sin((pos + relativeInterval - 0.25) * 2 * math.pi)
+			buffer.append(self.mixInto(background, color[:3] + [(color[3] + alpha) / 2]))
+		return buffer
 
 
 if __name__ == '__main__':
