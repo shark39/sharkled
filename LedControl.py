@@ -243,17 +243,14 @@ class LEDEffect(LEDController):
 					self.mixInto(buffer[(position + i + j) % length], color[:3] + [(color[3] + alpha) / 2])
 		return buffer
 
-	def bucketColor(self, ts, pos):
+	def bucketColor(self, ts, pos, interval=1000, colors=[[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,0]], bucketsize=1, **kwargs):
 		length = len(pos)
-		interval = self.parameters.get('interval') or 1000
-		colors = self.parameters.get('colors') or [[1,0,0],[0,1,0],[0,0,1],[0,0,0]]
-		bucketSize = self.parameters.get('bucketSize') or 1
-
+		
 		if not hasattr(self, 'lastTs') or self.lastTs + interval < ts:
 			colormap = []
-			for bucket in range((length/bucketSize) + 1):
+			for bucket in range((length/bucketsize) + 1):
 				bucketcolor = random.choice(colors)
-				for i in range(bucketSize):
+				for i in range(bucketsize):
 					if i < length:
 						colormap.append(bucketcolor)
 			self.lastTs = ts
@@ -261,6 +258,11 @@ class LEDEffect(LEDController):
 		return self.colormap
 
 	def rainbow(self, ts, pos, interval=1000, wavelength=100, **kwargs):
+		'''Description: generates a rainbow
+		Parameters: 
+			interval:
+			wavelength:
+			'''
 		length = len(pos)
 		relativeInterval = ((ts % interval) / float(interval))
 		colormap = []
@@ -269,13 +271,16 @@ class LEDEffect(LEDController):
 			colormap.append(list(colorsys.hsv_to_rgb(pos + relativeInterval, 1.0, 1.0))+[1])
 		return colormap
 
-	def pulsate(self, ts, pos, interval=1000, wavelength=100, **kwargs):
+	def pulsate(self, ts, pos, interval=1000, wavelength=100, color=[1,1,1,1], background=[0,0,0,0], **kwargs):
+		'''Description: generates a pulsating light
+		Parameters:
+			interval:
+			wavelength:
+			color:
+			background:
+		'''
 		length = len(pos)
-		color = self.parameters.get('color') or [1,1,1,1]
-		background = self.parameters.get('background') or [0,0,0,0]
 		relativeInterval = ((ts % interval) / float(interval))
-		if len(color) == 3: color.append(1)
-		if len(background) == 3: background.append(1)
 		buffer = []
 		for i in range(length):
 			pos = (i / float(wavelength))

@@ -196,7 +196,6 @@ def effect(name):
 				pass #wavelength = int(post.get('wavelength') * length)
 		
 		
-
 	## add default z-index
 	if 'z' not in post:
 		post['z'] = 0
