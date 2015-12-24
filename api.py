@@ -71,7 +71,7 @@ file_handler.setFormatter(Formatter('%(asctime)s %(levelname)8s [%(filename)s/%(
 
 for logger in loggers:
 	logger.handlers = []
-	logger.addHandler(file_handler)
+#	logger.addHandler(file_handler)
 
 
 
@@ -204,10 +204,17 @@ def effect(name):
 			if len(post[k]) == 3: 
 				post[k].append(1) ## add alpha value for color
 
-		if name == 'sequence' and k == 'fadespeed':
+		if name == 'sequence' and k == 'fadespeed' and post['fadespeed'] < 1:
 			post[k] = post[k] * post['interval'] # make fadespeed from relative to absolute depending on interval 
 		if name == 'sequence' and k == 'sequence':
 			post[k] = map(lambda x: x+[1] if len(x) == 3 else x, post[k])
+
+		if name == 'chase':
+			if post['width'] < 1: 
+				post['width'] = int(post['width'] * post['length'])
+			if post['soft'] < 1: 
+				post['soft'] = int(post['soft'] * post['width'])
+		
 
 	## add default z-index
 	if 'z' not in post:

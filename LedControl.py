@@ -201,10 +201,13 @@ class LEDEffect(LEDController):
 		'''
 		return len(pos) * [color]
 
-	def sequence(self, ts, pos, interval=1000, sequence=[[1,0,0,1],[0,1,0,1],[0,0,1,1]], fadespeed=0):
-		'''set the color. r, g, b must be between 0 and 1.
-		[implementation finished]'''
-		
+	def sequence(self, ts, pos, interval=1000, sequence=[[1,0,0,1],[0,1,0,1],[0,0,1,1]], fadespeed=0, **kwargs):
+		'''Description: fades from color to color.
+		Parameters:
+			interval:
+			sequence:
+			fadespeed:
+		'''
 		sinceLast = ts % interval
 		step = (ts % (interval*len(sequence))) / interval
 		color = sequence[step]
@@ -216,13 +219,16 @@ class LEDEffect(LEDController):
 		return len(pos) * [color]		
 
 	def chase(self, ts, pos, interval=500, count=1, width=5, soft=0, color=[1, 1, 1, 1], background=[0,0,0,1], **kwargs):
+		'''Description: generates a chase effect
+		Parameters:
+			interval:
+			count: 
+			width:
+			soft:
+			color:
+			background:
+			 '''
 		length = len(pos)
-		if type(width) == float: 
-			width = int(width * length)
-		if type(soft) == float: 
-			soft = int(soft * width)
-		
-		
 		position = int(length / (interval / float((ts % interval) + 1)))
 		buffer = [background] * length
 		for i in range(-soft, width + soft):
@@ -254,15 +260,13 @@ class LEDEffect(LEDController):
 			self.colormap = colormap
 		return self.colormap
 
-	def rainbow(self, ts, pos):
+	def rainbow(self, ts, pos, interval=1000, wavelength=100, **kwargs):
 		length = len(pos)
-		interval = self.parameters.get('interval') or 1000
-		wavelength = self.parameters.get('wavelength') or length
 		relativeInterval = ((ts % interval) / float(interval))
 		colormap = []
 		for i in range(length):
 			pos = (i / float(wavelength))
-			colormap.append(colorsys.hsv_to_rgb(pos + relativeInterval, 1.0, 1.0))
+			colormap.append(list(colorsys.hsv_to_rgb(pos + relativeInterval, 1.0, 1.0))+[1])
 		return colormap
 
 	def pulsate(self, ts, pos):
