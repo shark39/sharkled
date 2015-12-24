@@ -195,7 +195,7 @@ class LEDController:
 
 class LEDEffect(LEDController):
 
-	def color(self, ts, pos, color=(1,1,1)):
+	def color(self, ts, pos, color=(1,1,1,1), **kwargs):
 		'''Description: set a solid color
 		Parameters: color 4-tupel of floats between 0..1
 		'''
@@ -269,12 +269,8 @@ class LEDEffect(LEDController):
 			colormap.append(list(colorsys.hsv_to_rgb(pos + relativeInterval, 1.0, 1.0))+[1])
 		return colormap
 
-	def pulsate(self, ts, pos):
+	def pulsate(self, ts, pos, interval=1000, wavelength=100, **kwargs):
 		length = len(pos)
-		interval = self.parameters.get('interval') or 1000
-		wavelength = self.parameters.get('wavelength') or length
-		if type(wavelength) == float:
-			wavelength = int(wavelength * length)
 		color = self.parameters.get('color') or [1,1,1,1]
 		background = self.parameters.get('background') or [0,0,0,0]
 		relativeInterval = ((ts % interval) / float(interval))

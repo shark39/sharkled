@@ -163,30 +163,6 @@ def stop_controller():
 #################
 #################
 
-@app.route("/color", methods=['POST', 'OPTIONS'])
-@auto.doc()
-def set_pixel():
-	'''Parameters: 
-		rgb: Integer between 0x0 and 0xFFFFFF
-		or: r, g, b: int between 0x and 0xFF each
-		and: areas: comma seperated list with names of areas 
-		or: indexes: python syntax for positions for leds
-		''' 
-	if request.method == 'OPTIONS':
-		return getResponse()
-
-	post = request.get_json()
-
-	## get the color
-	r,g, b = getColor(**post)
-	app.logger.debug("Got Color.")
-	## get the pos
-	pos = getPosition(**post)
-	app.logger.debug("Got Position.")
-
-	lid = master.add(name='color', pos=pos, bufferType='color', function=LEDController.setColor, parameters={'r': r, 'g': g, 'b': b})
-	return  getResponse(jsonify(id=lid, name='color'), 201)
-
 
 ####################
 ## Effects
@@ -211,9 +187,14 @@ def effect(name):
 
 		if name == 'chase':
 			if post['width'] < 1: 
-				post['width'] = int(post['width'] * post['length'])
+				pass #post['width'] = int(post['width'] * post['pos'])
 			if post['soft'] < 1: 
 				post['soft'] = int(post['soft'] * post['width'])
+
+		if name == 'pulsate':
+			if post.get('wavelength') <= 1:
+				pass #wavelength = int(post.get('wavelength') * length)
+		
 		
 
 	## add default z-index
