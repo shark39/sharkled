@@ -195,10 +195,27 @@ def set_pixel():
 
 
 @app.route("/effect/<name>", methods=['POST', 'OPTIONS'])
-def effect2(name):
+def effect(name):
 	if request.method == 'OPTIONS':
 		return getResponse()
 	post = request.get_json()
+	for k in post.iterkeys():
+		if k == 'color':
+			if len(post[k]) == 3: 
+				post[k].append(1) ## add alpha value for color
+
+		if name == 'sequence' and k == 'fadespeed':
+			post[k] = post[k] * post['interval'] # make fadespeed from relative to absolute depending on interval 
+		if name == 'sequence' and k == 'sequence':
+			post[k] = map(lambda x: x+[1] if len(x) == 3 else x, post[k])
+
+	## add default z-index
+	if 'z' not in post:
+		post['z'] = 0
+	## add default area
+	if 'areas' not in post:
+		post['areas'] = 'all'
+
 	lid = master.add(name=name, parameters=post)
 	return getResponse(jsonify(id=lid, name=name, parameters=master.getControllerParameters(lid)), 201)
 

@@ -52,7 +52,7 @@ class LEDMaster:
 				id = controller.id
 				logging.debug("updated controller %s" %str(self.controllers))
 		if id < 0: # if no matches: create new controller
-			c = LEDController(name, parameters)
+			c = LEDEffect(name, parameters)
 			self.controllers[c.id] = c
 			id = c.id
 			logging.debug("added new controller %s" %str(self.controllers))
@@ -76,8 +76,6 @@ class LEDMaster:
 		'''set everything to black'''
 		self.buffer = LEDS_COUNT*[(0, 0, 0, 1)]
 
-
-
 	def finishControllerById(self, cid):
 		'''removes the corresponding controller'''
 		del self.controllers[cid]
@@ -88,6 +86,11 @@ class LEDMaster:
 		for i in range(LEDS_COUNT):
 			out.append(ws.get_pixel(i))
 		return out
+
+	@classmethod
+	def getTimestamp():
+		'''returns milliseconds as integer'''
+		return int(time.time()*1000)
 
 	def getTimestamp(self):
 		'''returns milliseconds as integer'''
@@ -103,7 +106,7 @@ class LEDMaster:
 			if self.finish:
 				break
 			timestamp = self.getTimestamp()
-			controllers = sorted(self.controllers.values(), key=lambda c: (c.parameters.get('z') or 0, c.id)) #because of thread problems fetching before iterating is important
+			controllers = sorted(self.controllers.values(), key=lambda c: (c.parameters.get('z'), c.id)) #because of thread problems fetching before iterating is important
 			for controller in controllers:
 				if controller.paused: continue
 				buffers = controller.effect(timestamp + controller.offset)
@@ -129,12 +132,20 @@ class LEDMaster:
 				self.actualframerate += 10
 			
 class LEDController:
+	'''stores all default functions'''
 	id = 0
 	def __init__(self, name, parameters):
 		self.name = name
 		LEDController.id += 1
 		self.paused = False
 		self.updateParameters(parameters)
+
+	def __repr__(self):
+		return "LEDController " + self.name + '<' + str(len(self.pos)) + 'LEDS>'
+
+	def __str__(self):
+		return "LEDController " + self.name + '<' + str(len(self.pos)) + 'LEDS>'
+
 
 	def updateParameters(self, parameters):
 		self.parameters = parameters
@@ -144,6 +155,7 @@ class LEDController:
 		if self.offset == '-1': self.offset = - int(time.time()*1000)
 
 	def resolve(self, areas):
+		'''...'''
 		pos = []
 		for a in areas:
 			matches = re.search(r'([^\[]*)(\[.+\])?', a).groups() # split between ':'
@@ -159,23 +171,18 @@ class LEDController:
 				pos.append(resolved)
 		return pos
 
-	def __repr__(self):
-		return "LEDController " + self.name + '(' + str(len(self.pos)) + 'leds)'
-
-	def __str__(self):
-		return "LEDController " + self.name + '(' + str(len(self.pos)) + 'leds)'
-
+	
 	def effect(self, ts):
 		mergeType = self.parameters.get('mergeType') or 'concat'
 		pos = []
 		if mergeType == 'concat':
 			for array in self.pos:
 				pos += array
-			return [(getattr(self, self.name)(ts, pos), pos)]	
+			return [(getattr(self, self.name)(ts, pos, **self.parameters), pos)]	
 		elif mergeType == 'syncro':
 			buffers = []
 			for array in self.pos:
-				buffers.append((getattr(self, self.name)(ts, array), array))
+				buffers.append((getattr(self, self.name)(ts, array, **self.parameters), array))
 			return buffers
 
 	def mixInto(self, base, mix):
@@ -184,48 +191,38 @@ class LEDController:
 		if base[3] == 0: return mix
 		if mix[3] == 0: return base
 		return map(lambda (b, m): b*base[3]*(1-mix[3])+m*mix[3], zip(base, mix)) ## interpolate with alpha value of mix
-		
-	def color(self, ts, pos):
-		'''set the color. r, g, b must be between 0 and 1.
-		[implementation finished]'''
-		color = self.parameters.get('color') or [1,0,0]
-		if len(color) == 3: color.append(1)
+
+
+class LEDEffect(LEDController):
+
+	def color(self, ts, pos, color=(1,1,1)):
+		'''Description: set a solid color
+		Parameters: color 4-tupel of floats between 0..1
+		'''
 		return len(pos) * [color]
 
-	def sequence(self, ts, pos):
+	def sequence(self, ts, pos, interval=1000, sequence=[[1,0,0,1],[0,1,0,1],[0,0,1,1]], fadespeed=0):
 		'''set the color. r, g, b must be between 0 and 1.
 		[implementation finished]'''
-		interval = self.parameters.get('interval') or 1000
-		sequence = self.parameters.get('sequence') or [[1,0,0],[0,1,0],[0,0,1]]
-		fadeSpeed = self.parameters.get('fadeSpeed') or 0
-		fadeSpeed = fadeSpeed * interval
-		sinceLast = ts % interval; 
-
+		
+		sinceLast = ts % interval
 		step = (ts % (interval*len(sequence))) / interval
 		color = sequence[step]
-		if len(color) == 3: color.append(1)		
-		if fadeSpeed > 0:
-			fadeCorrection = (fadeSpeed - sinceLast) / float(fadeSpeed)
+		if fadespeed > 0:
+			fadeCorrection = (fadespeed - sinceLast) / float(fadespeed)
 			if fadeCorrection >= 0 and fadeCorrection <= 1:
 				for i in range(4):
 					color[i] = (fadeCorrection * sequence[step-1][i] + (1 - fadeCorrection) * sequence[step][i])
 		return len(pos) * [color]		
 
-	def chase(self, ts, pos):
+	def chase(self, ts, pos, interval=500, count=1, width=5, soft=0, color=[1, 1, 1, 1], background=[0,0,0,1], **kwargs):
 		length = len(pos)
-		interval = (self.parameters.get('interval') or 10) * length
-		count = self.parameters.get('count') or 1
-		width = self.parameters.get('width') or 5
 		if type(width) == float: 
 			width = int(width * length)
-		soft = self.parameters.get('soft') or 0
 		if type(soft) == float: 
 			soft = int(soft * width)
-		color = self.parameters.get('color') or [1,1,1]
-		background = self.parameters.get('background') or [0,0,0,0]
-		if len(color) == 3: color.append(1)
-		if len(background) == 3: background.append(1)
-
+		
+		
 		position = int(length / (interval / float((ts % interval) + 1)))
 		buffer = [background] * length
 		for i in range(-soft, width + soft):
