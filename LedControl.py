@@ -141,10 +141,10 @@ class LEDController:
 		self.updateParameters(parameters)
 
 	def __repr__(self):
-		return "LEDController " + self.name + '<' + str(len(self.pos)) + 'LEDS>'
+		return "LEDController " + self.name + '<' + str(self.pos) + '>'
 
 	def __str__(self):
-		return "LEDController " + self.name + '<' + str(len(self.pos)) + 'LEDS>'
+		return "LEDController " + self.name + '<' + str(self.pos) + '>'
 
 
 	def updateParameters(self, parameters):
@@ -243,9 +243,14 @@ class LEDEffect(LEDController):
 					self.mixInto(buffer[(position + i + j) % length], color[:3] + [(color[3] + alpha) / 2])
 		return buffer
 
-	def bucketColor(self, ts, pos, interval=1000, colors=[[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,0]], bucketsize=1, **kwargs):
+	def bucketColor(self, ts, pos, interval=1000, colors=[[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,1]], bucketsize=1, **kwargs):
+		'''Description:
+		Parameters:
+			interval:
+			color:
+			bucketsize:
+		'''
 		length = len(pos)
-		
 		if not hasattr(self, 'lastTs') or self.lastTs + interval < ts:
 			colormap = []
 			for bucket in range((length/bucketsize) + 1):
@@ -293,9 +298,10 @@ if __name__ == '__main__':
 
 
 	master = LEDMaster()
-	id1 = master.add(name='color', pos=range(10), bufferType='color', function=LEDController.setColor, parameters = {'r': 1, 'g':0, 'b':0})
-	id2 = master.add(name='strobe', pos=range(5), bufferType='mask', function=LEDController.strobe, parameters = {'interval':1000})
-
+	id1 = master.add(name='bucketColor', parameters = {'areas': ['Wand']})
+	wait = raw_input("Enter to finish")
+	master.finish = True
+	
 	
 	# for i in range(300):
 	# 	ws.set_pixel(i, 200, 0, 50)
@@ -304,9 +310,9 @@ if __name__ == '__main__':
 		
 	# 	ws.show()
 	# 	time.sleep(0.05)
-	try:
-		while True:
-			pass
-	except KeyboardInterrupt:
-		master.finish = True
+	#try:
+	#	while True:
+	#		pass
+	#except KeyboardInterrupt:
+	#	master.finish = True
 			
