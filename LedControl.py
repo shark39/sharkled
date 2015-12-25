@@ -1,15 +1,15 @@
 import threading
 from threading import Thread
-import time
-from  datetime import datetime
+import time # for timestamp
 from functools import partial
-import sys
+import sys 
 import logging
 import random
 import math
-import colorsys
+import colorsys # for converting to hsv
 import collections
-import re
+import re #for parsing areas
+import inspect
 
 from constants import *
 from timer import Timer
@@ -69,7 +69,6 @@ class LEDMaster:
 	def reset(self):
 		''' deletes all controllers and set everything to black'''
 		self.controllers = {}
-		self.id = 0
 		self.clear()
 
 	def clear(self):
@@ -85,6 +84,21 @@ class LEDMaster:
 		out = []
 		for i in range(LEDS_COUNT):
 			out.append(ws.get_pixel(i))
+		return out
+
+	@staticmethod
+	def getEffects():
+		out = []
+		methods = inspect.getmembers(LEDEffect)
+		for name, func in methods:
+			if not name.startswith('_') and inspect.ismethod(func):
+				parameters = inspect.getargspec(func)
+				if parameters.defaults and len(parameters.args)-3 == len(parameters.defaults):
+					## first two parameters are ts and pos and self, all the others have default values
+					pout = dict(zip(parameters.args[3:], parameters.defaults))
+				else:
+					pount = {}
+				out.append({'name': name, 'parameters': pout})
 		return out
 
 	@classmethod
@@ -109,7 +123,7 @@ class LEDMaster:
 			controllers = sorted(self.controllers.values(), key=lambda c: (c.parameters.get('z'), c.id)) #because of thread problems fetching before iterating is important
 			for controller in controllers:
 				if controller.paused: continue
-				buffers = controller.effect(timestamp + controller.offset)
+				buffers = controller._effect(timestamp + controller.offset)
 				for (buffer, pos) in buffers:
 					for i, pos in enumerate(pos):
 						if buffer[i][3] == 0: continue
@@ -138,7 +152,7 @@ class LEDController:
 		self.name = name
 		LEDController.id += 1
 		self.paused = False
-		self.updateParameters(parameters)
+		self._updateParameters(parameters)
 
 	def __repr__(self):
 		return "LEDController " + self.name + '<' + str(self.pos) + '>'
@@ -147,14 +161,14 @@ class LEDController:
 		return "LEDController " + self.name + '<' + str(self.pos) + '>'
 
 
-	def updateParameters(self, parameters):
+	def _updateParameters(self, parameters):
 		self.parameters = parameters
-		self.areas = parameters.get('areas') or 'all'
-		self.pos = self.resolve(self.areas)
+		self.areas = parameters.get('areas') or ['all']
+		self.pos = self._resolve(self.areas)
 		self.offset = parameters.get('offset') or 0
 		if self.offset == '-1': self.offset = - int(time.time()*1000)
 
-	def resolve(self, areas):
+	def _resolve(self, areas):
 		'''...'''
 		pos = []
 		for a in areas:
@@ -166,13 +180,13 @@ class LEDController:
 				cleanIndexes = [None] * 3
 				for i in range(len(indexes)):
 					cleanIndexes[i] = int(indexes[i]) if indexes[i] != '' else None
-				pos += self.resolve(resolved)[cleanIndexes[0]:cleanIndexes[1]:cleanIndexes[2]]
+				pos += self._resolve(resolved)[cleanIndexes[0]:cleanIndexes[1]:cleanIndexes[2]]
 			else:
 				pos.append(resolved)
 		return pos
 
 	
-	def effect(self, ts):
+	def _effect(self, ts):
 		mergeType = self.parameters.get('mergeType') or 'concat'
 		pos = []
 		if mergeType == 'concat':
@@ -185,12 +199,15 @@ class LEDController:
 				buffers.append((getattr(self, self.name)(ts, array, **self.parameters), array))
 			return buffers
 
-	def mixInto(self, base, mix):
+	def _mixInto(self, base, mix):
 		if len(base) < 4: base.append(1)
 		if len(mix) < 4: mix.append(1) 
 		if base[3] == 0: return mix
 		if mix[3] == 0: return base
 		return map(lambda (b, m): b*base[3]*(1-mix[3])+m*mix[3], zip(base, mix)) ## interpolate with alpha value of mix
+
+	def _interpolate(self, color1, color2):
+		return [self._mixInto(c1, c2) for c1, c2 in zip(color1, color2)]
 
 
 class LEDEffect(LEDController):
@@ -240,7 +257,7 @@ class LEDEffect(LEDController):
 				alpha = 1
 			for j in range(0, length, length / count):
 				buffer[(position + i + j) % length] = \
-					self.mixInto(buffer[(position + i + j) % length], color[:3] + [(color[3] + alpha) / 2])
+					self._mixInto(buffer[(position + i + j) % length], color[:3] + [(color[3] + alpha) / 2])
 		return buffer
 
 	def bucketColor(self, ts, pos, interval=1000, colors=[[1,0,0,1],[0,1,0,1],[0,0,1,1],[0,0,0,1]], bucketsize=1, **kwargs):
@@ -262,18 +279,19 @@ class LEDEffect(LEDController):
 			self.colormap = colormap
 		return self.colormap
 
-	def rainbow(self, ts, pos, interval=1000, wavelength=100, **kwargs):
+	def rainbow(self, ts, pos, interval=1000, wavelength=100, alpha=1, **kwargs):
 		'''Description: generates a rainbow
 		Parameters: 
 			interval:
 			wavelength:
+			alpha: float | 0..1 | transparency of rainbow
 			'''
 		length = len(pos)
 		relativeInterval = ((ts % interval) / float(interval))
 		colormap = []
 		for i in range(length):
 			pos = (i / float(wavelength))
-			colormap.append(list(colorsys.hsv_to_rgb(pos + relativeInterval, 1.0, 1.0))+[1])
+			colormap.append(list(colorsys.hsv_to_rgb(pos + relativeInterval, 1.0, 1.0))+[alpha])
 		return colormap
 
 	def pulsate(self, ts, pos, interval=1000, wavelength=100, color=[1,1,1,1], background=[0,0,0,0], **kwargs):
@@ -290,17 +308,39 @@ class LEDEffect(LEDController):
 		for i in range(length):
 			pos = (i / float(wavelength))
 			alpha = 0.5 + 0.5*math.sin((pos + relativeInterval - 0.25) * 2 * math.pi)
-			buffer.append(self.mixInto(background, color[:3] + [(color[3] + alpha) / 2]))
+			buffer.append(self._mixInto(background, color[:3] + [(color[3] + alpha) / 2]))
 		return buffer
 
 
+	def christmas(self, ts, pos, **kwargs):
+		color1 = self.color(ts, pos, color=[1, 0.1, 0.25, 1])
+		color2 = self.rainbow(ts, pos, alpha=0.4, interval=10000)
+		colormix = self._interpolate(color1, color2)
+		for i in range(len(pos)):
+			if random.random() > 0.99995:
+				for j in range(i-5, i):
+					colormix[j] = [1, 1, 1, 1]
+		return colormix
+		
 if __name__ == '__main__':
 
 
 	master = LEDMaster()
-	id1 = master.add(name='bucketColor', parameters = {'areas': ['Wand']})
+	print LEDMaster.getEffects()
+
+	
+	master.add(name='christmas')
+	master.add(name='chase', parameters={'count': 4, 'areas': ['all'], 'interval': 60000,  'color': [0,0,1,0.8], 'soft': 20, 'width': 1, 'background': [0,0,0,0]})
 	wait = raw_input("Enter to finish")
 	master.finish = True
+
+	#id1 = master.add(name='bucketColor', parameters = {'areas': ['Wand']})
+	master.add(name='color', parameters = {'areas': ['all'], 'color': [1, 0.1, 0.25, 1]})
+	master.add(name='rainbow', parameters = {'areas': ['all'], 'alpha': 0.4, 'interval': 10000})
+	#wait = raw_input("Enter to finish")
+	master.reset()
+	#time.sleep(3)
+	
 	
 	
 	# for i in range(300):

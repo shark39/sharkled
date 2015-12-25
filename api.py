@@ -3,6 +3,7 @@ import sys
 import colorsys
 import math
 import datetime
+import inspect
 from functools import partial
 from time import sleep
 from logging import FileHandler, Formatter, getLogger, DEBUG
@@ -129,6 +130,14 @@ def getLeds():
 def ranges():
 	'''Returns a json of given ranges'''
 	return getResponse(jsonify(areas=AREAS.keys()), 200)
+
+@app.route("/effects")
+@auto.doc()
+def effects():
+	return getResponse(jsonify(effects=LEDMaster.getEffects()), 200)
+
+
+
 	
 @app.route("/off")
 @auto.doc()
