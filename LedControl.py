@@ -38,7 +38,8 @@ class LEDMaster:
 		self.controllers = {}
 		self.finish = False
 		self.bufferThread = Thread(target=self.writeBuffer)
-		self.bufferThread.start()
+		if RPI:
+			self.bufferThread.start()
 		
 
 	def add(self, name, parameters={}):

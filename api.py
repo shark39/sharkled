@@ -13,6 +13,7 @@ from flask import Flask, request, Response, make_response, jsonify
 from flask.ext.autodoc import Autodoc
 
 from constants import *
+from colornames import COLORS
 
 from LedControl import LEDController, LEDMaster
 
@@ -279,8 +280,8 @@ def natural_language_effect():
 	## find effect name
 	## word with highest match and before keyword parameters
 	choices = [e['name'] for e in LEDMaster.getEffects()]
-	best_match = collections.namedtuple('Match', 'effect chance')
-	best_match.chance = 0
+	best_match_effect = collections.namedtuple('Match', 'effect chance')
+	best_match_effect.chance = 0
 	parameters_i = 0 ## store the index of parameters to continue faster
 	for effect in choices:
 		for i, word in enumerate(words):
@@ -289,38 +290,58 @@ def natural_language_effect():
 				break
 			else:
 				match = jellyfish.jaro_distance(unicode(effect), unicode(word)) 
-				if match > best_match.chance:
-					best_match.chance = match
-					best_match.effect = effect
+				if match > best_match_effect.chance:
+					best_match_effect.chance = match
+					best_match_effect.effect = effect
 				continue ## prevent from breaking out of the second loop
 			break
 
 	## detect parameters
-	parameters = LEDMaster.getDefaultParameters(best_match.effect) ## always load default 
+	parameters = LEDMaster.getDefaultParameters(best_match_effect.effect) ## always load default 
 	if parameters_i > 0: ## no parameters
-		for i, word in enumerate(words[parameters_i+1:], start=parameters_i+1):
+		for i, word in enumerate(words[parameters_i+1:-1], start=parameters_i+1):
+			print i, word
 			for j, p in enumerate(parameters.keys()):
 				match = jellyfish.jaro_distance(unicode(p), unicode(word)) 
 				if match > threshold:
 					##convert value after keyword to correct type
 					correct_type = type(parameters[p])
-					try: 
-						value = correct_type(words[i+1])
-					except:
-						print "Failed to decode ", words[i], words[i+1]
-					else:
-						parameters[p] = value
-	
+					if correct_type == list: ## assume that we have a color here
+							best_match_color = collections.namedtuple('Match', 'index chance')
+							best_match_color.chance = 0
+							for j, c in enumerate(COLORS):
+								match = jellyfish.jaro_distance(unicode(c['name']), unicode(words[i+1])) 
+								if match > threshold and match > best_match_color.chance:
+									best_match_color.chance = match
+									best_match_color.index = j
+							if best_match_color.chance > 0:
+								print "assign match"
+								rgb = map(lambda x: x/255.0, list(eval(COLORS[best_match_color.index]['rgb']))) + [1]
+								parameters[p] = rgb
+		
+					else:	
+						print "try to convert", words[i+1]			
+						try: 
+							value = correct_type(words[i+1])
+						except IndexError:
+							break ## last index
+						except:
+							print "exception"
+							
+							print "Failed to decode ", words[i], words[i+1]
+						else:
+							parameters[p] = value
+		
 	if not areas:
 		parameters["areas"] = ["All"]
 	else:
 		parameters["areas"] = areas
 
-	inpterpretation = {"effect": best_match.effect, "areas": areas, "parameters": parameters}
+	inpterpretation = {"effect": best_match_effect.effect, "areas": areas, "parameters": parameters}
 
 	##add effect
-	lid = master.add(name=best_match.effect, parameters=parameters)
-	effectreturn =  dict(id=lid, name=best_match.effect, parameters=master.getControllerParameters(lid))
+	lid = master.add(name=best_match_effect.effect, parameters=parameters)
+	effectreturn =  dict(id=lid, name=best_match_effect.effect, parameters=master.getControllerParameters(lid))
 
 	return getResponse(jsonify(inpterpretation=inpterpretation, effect=effectreturn), 201) 
 
