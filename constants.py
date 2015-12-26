@@ -7,7 +7,7 @@ AREAS = {
 	"Balken3": range(330, 450),
 	"Balken4": range(573, 451, -1),	
 	"Wand4"  : range(574, 600),
-	"all": ["Wand", "Balken1", "Balken2", "Balken3", "Balken4"],
+	"All": ["Wand", "Balken1", "Balken2", "Balken3", "Balken4"],
 	"Wand": ["Wand1", "Wand2", "Wand3", "Wand4"],
 	"Balken": ["Balken1", "Balken2", "Balken3", "Balken4"]}
 DEFECTLEDS = [143,150,151,246,414]

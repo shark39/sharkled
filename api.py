@@ -184,6 +184,8 @@ def effect(name):
 	if request.method == 'OPTIONS':
 		return getResponse()
 	post = request.get_json()
+	if not post:
+		post = {"areas": ["all"]}
 	for k in post.iterkeys():
 		if k == 'color':
 			if len(post[k]) == 3: 
@@ -195,9 +197,9 @@ def effect(name):
 			post[k] = map(lambda x: x+[1] if len(x) == 3 else x, post[k])
 
 		if name == 'chase':
-			if post['width'] < 1: 
+			if post.get('width') and post.get('width') < 1: 
 				pass #post['width'] = int(post['width'] * post['pos'])
-			if post['soft'] < 1: 
+			if post.get('soft') and post['soft'] < 1: 
 				post['soft'] = int(post['soft'] * post['width'])
 
 		if name == 'pulsate':
@@ -210,7 +212,13 @@ def effect(name):
 		post['z'] = 0
 	## add default area
 	if 'areas' not in post:
-		post['areas'] = 'all'
+		post['areas'] = ['all']
+	if type(post["areas"]) == str:
+		post["areas"] = [post["areas"]]
+
+	for i, a in enumerate(post['areas']):
+		post['areas'][i] = a.capitalize()
+
 
 	lid = master.add(name=name, parameters=post)
 	return getResponse(jsonify(id=lid, name=name, parameters=master.getControllerParameters(lid)), 201)

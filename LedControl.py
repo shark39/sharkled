@@ -101,7 +101,7 @@ class LEDMaster:
 				out.append({'name': name, 'parameters': pout})
 		return out
 
-	@classmethod
+	@staticmethod
 	def getTimestamp():
 		'''returns milliseconds as integer'''
 		return int(time.time()*1000)
@@ -155,10 +155,10 @@ class LEDController:
 		self._updateParameters(parameters)
 
 	def __repr__(self):
-		return "LEDController " + self.name + '<' + str(self.pos) + '>'
+		return "LEDController " + self.name + '<' + str(len(self.pos)) + '>'
 
 	def __str__(self):
-		return "LEDController " + self.name + '<' + str(self.pos) + '>'
+		return "LEDController " + self.name + '<' + str(len(self.pos)) + '>'
 
 
 	def _updateParameters(self, parameters):
@@ -214,7 +214,8 @@ class LEDEffect(LEDController):
 
 	def color(self, ts, pos, color=(1,1,1,1), **kwargs):
 		'''Description: set a solid color
-		Parameters: color 4-tupel of floats between 0..1
+		Parameters: 
+			color | 4-tupel of floats between 0..1 
 		'''
 		return len(pos) * [color]
 
