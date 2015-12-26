@@ -8,7 +8,7 @@ def convrgb(r, g, b):
 
 
 class Stripe:
-	LEDS_COUNT = 150
+	LEDS_COUNT = 600
 	scale = 8
 
 	leds = LEDS_COUNT*[convrgb(0, 0, 0)]

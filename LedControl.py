@@ -102,6 +102,19 @@ class LEDMaster:
 		return out
 
 	@staticmethod
+	def getDefaultParameters(effect):
+		out = []
+		methods = inspect.getmembers(LEDEffect)
+		for name, func in methods:
+			if name == effect:
+				parameters = inspect.getargspec(func)
+				if parameters.defaults and len(parameters.args)-3 == len(parameters.defaults):
+					## first two parameters are ts and pos and self, all the others have default values
+					return dict(zip(parameters.args[3:], parameters.defaults))	
+		return {}
+
+
+	@staticmethod
 	def getTimestamp():
 		'''returns milliseconds as integer'''
 		return int(time.time()*1000)

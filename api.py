@@ -4,6 +4,8 @@ import colorsys
 import math
 import datetime
 import inspect
+import collections 
+import jellyfish
 from functools import partial
 from time import sleep
 from logging import FileHandler, Formatter, getLogger, DEBUG
@@ -254,6 +256,76 @@ def adjust(cid):
 	controller.parameters = post
 	return getResponse('', 204)
 
+
+@app.route("/jellyfish/effect", methods=['GET', 'OPTIONS', 'POST'])
+def natural_language_effect():
+	if request.method == 'OPTIONS':
+		return getResponse()
+	post = request.get_json() or 'Wand chase'
+	## parsing response
+	threshold = 0.75
+	text = post.get('text')
+	
+	## find areas
+	areas = []
+	words = text.split()
+	for i, word in enumerate(words): ## TODO detect stuff like Balken1, Wand2
+		for a in AREAS:
+			if a[-1] in '1234':
+				continue ## TODO detect if number is attached
+			if jellyfish.jaro_distance(unicode(a), unicode(word)) > threshold and a not in areas:
+				areas.append(a)
+	
+	## find effect name
+	## word with highest match and before keyword parameters
+	choices = [e['name'] for e in LEDMaster.getEffects()]
+	best_match = collections.namedtuple('Match', 'effect chance')
+	best_match.chance = 0
+	parameters_i = 0 ## store the index of parameters to continue faster
+	for effect in choices:
+		for i, word in enumerate(words):
+			if jellyfish.jaro_distance(u"parameter", unicode(word)) > threshold:
+				parameters_i = i
+				break
+			else:
+				match = jellyfish.jaro_distance(unicode(effect), unicode(word)) 
+				if match > best_match.chance:
+					best_match.chance = match
+					best_match.effect = effect
+				continue ## prevent from breaking out of the second loop
+			break
+
+	## detect parameters
+	parameters = LEDMaster.getDefaultParameters(best_match.effect) ## always load default 
+	if parameters_i > 0: ## no parameters
+		for i, word in enumerate(words[parameters_i+1:], start=parameters_i+1):
+			for j, p in enumerate(parameters.keys()):
+				match = jellyfish.jaro_distance(unicode(p), unicode(word)) 
+				if match > threshold:
+					##convert value after keyword to correct type
+					correct_type = type(parameters[p])
+					try: 
+						value = correct_type(words[i+1])
+					except:
+						print "Failed to decode ", words[i], words[i+1]
+					else:
+						parameters[p] = value
+	
+	if not areas:
+		parameters["areas"] = ["All"]
+	else:
+		parameters["areas"] = areas
+
+	inpterpretation = {"effect": best_match.effect, "areas": areas, "parameters": parameters}
+
+	##add effect
+	lid = master.add(name=best_match.effect, parameters=parameters)
+	effectreturn =  dict(id=lid, name=best_match.effect, parameters=master.getControllerParameters(lid))
+
+	return getResponse(jsonify(inpterpretation=inpterpretation, effect=effectreturn), 201) 
+
+
+
 @app.route('/docs')
 def documentation():
 	return auto.html()
@@ -263,6 +335,10 @@ if __name__ == '__main__':
 	    master.finish = True
 	    sys.exit(0)
 	signal.signal(signal.SIGINT, signal_handler)
-	app.run(host='0.0.0.0', port=9000, debug=False)
+	if sys.platform == 'win32':
+		debug = True
+	else:
+		debug = False
+	app.run(host='0.0.0.0', port=9000, debug=debug)
 		
 	
