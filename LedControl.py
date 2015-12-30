@@ -27,7 +27,7 @@ else:
 	#t.start()
 
 
-logging.basicConfig(filename='ledcontrol.log',level=logging.DEBUG)
+#logging.basicConfig(filename='ledcontrol.log',level=logging.DEBUG)
 
 class LEDMaster:
 
@@ -35,12 +35,11 @@ class LEDMaster:
 		
 		self.framerate = 30 #ms
 		self.actualframerate = 30 #ms
-		self.controllers = {}
+		self.controllers = collections.OrderedDict()
 		self.finish = False
 		self.bufferThread = Thread(target=self.writeBuffer)
 		if RPI:
 			self.bufferThread.start()
-		
 
 	def add(self, name, parameters={}):
 		'''adds or updates the controller indentified by name 
@@ -51,12 +50,14 @@ class LEDMaster:
 			if controller.name == name and compare(parameters.get('areas'), controller.parameters.get('areas')):
 				controller.parameters = parameters
 				id = controller.id
-				logging.debug("updated controller %s" %str(self.controllers))
+				#logging.debug("updated controller %s" %str(self.controllers))
 		if id < 0: # if no matches: create new controller
 			c = LEDEffect(name, parameters)
 			self.controllers[c.id] = c
 			id = c.id
-			logging.debug("added new controller %s" %str(self.controllers))
+			#logging.debug("added new controller %s" %str(self.controllers))
+		## order dict
+		self.controllers = collections.OrderedDict(sorted(self.controllers.items(), key=lambda (i, c): (c.parameters.get('z'), c.id)))
 		return id
 
 	def getController(self, cid):
@@ -89,6 +90,7 @@ class LEDMaster:
 
 	@staticmethod
 	def getEffects():
+		'''returns a list with all available effects including parameters with default values'''
 		out = []
 		methods = inspect.getmembers(LEDEffect)
 		for name, func in methods:
@@ -104,6 +106,7 @@ class LEDMaster:
 
 	@staticmethod
 	def getDefaultParameters(effect):
+		'''return all the default parameters for the given effect name'''
 		out = []
 		methods = inspect.getmembers(LEDEffect)
 		for name, func in methods:
@@ -134,7 +137,7 @@ class LEDMaster:
 			if self.finish:
 				break
 			timestamp = self.getTimestamp()
-			controllers = sorted(self.controllers.values(), key=lambda c: (c.parameters.get('z'), c.id)) #because of thread problems fetching before iterating is important
+			controllers = self.controllers.values() #because of thread problems fetching before iterating is important
 			for controller in controllers:
 				if controller.paused: continue
 				buffers = controller._effect(timestamp + controller.offset)
@@ -226,7 +229,7 @@ class LEDController:
 
 class LEDEffect(LEDController):
 
-	def color(self, ts, pos, color=(1,1,1,1), **kwargs):
+	def color(self, ts, pos, color=[1,1,1,1], **kwargs):
 		'''Description: set a solid color
 		Parameters: 
 			color | 4-tupel of floats between 0..1 

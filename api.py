@@ -40,15 +40,16 @@ def getPosition(areas=None, indexes=None, **kwargs):
 		for a in areas:
 			pos += AREAS[a]
 	if indexes:
-		app.logger.debug("Got range from Request: " + str(indexes))
+		#app.logger.debug("Got range from Request: " + str(indexes))
 		try: 
 			pos += eval('range(LEDS_COUNT)'+ indexes)
 		except Exception as ex:
-			app.logger.debug("Cannot parse range. " + str(ex))
+			pass
+			#app.logger.debug("Cannot parse range. " + str(ex))
 	return pos
 
 def getColor(**kwargs):
-	app.logger.debug("Got information to decode for color" + str(kwargs))
+	#app.logger.debug("Got information to decode for color" + str(kwargs))
 	if 'rgb' in kwargs.keys():
 		return map(lambda x: 1.0*x/255, splitrgb(kwargs['rgb']))
 	if 'r' in kwargs.keys() and 'g' in kwargs.keys() and 'b' in kwargs.keys():
@@ -68,13 +69,13 @@ app = Flask(__name__)
 auto = Autodoc(app)
 master = LEDMaster()
 
-loggers = [app.logger]
-file_handler = FileHandler('flask.log')
-file_handler.setLevel(DEBUG)
-file_handler.setFormatter(Formatter('%(asctime)s %(levelname)8s [%(filename)s/%(funcName)s:%(lineno)d] - %(message)s'))
+#loggers = [app.logger]
+#file_handler = FileHandler('flask.log')
+#file_handler.setLevel(DEBUG)
+#file_handler.setFormatter(Formatter('%(asctime)s %(levelname)8s [%(filename)s/%(funcName)s:%(lineno)d] - %(message)s'))
 
-for logger in loggers:
-	logger.handlers = []
+#for logger in loggers:
+#	logger.handlers = []
 #	logger.addHandler(file_handler)
 
 
@@ -300,7 +301,6 @@ def natural_language_effect():
 	parameters = LEDMaster.getDefaultParameters(best_match_effect.effect) ## always load default 
 	if parameters_i > 0: ## no parameters
 		for i, word in enumerate(words[parameters_i+1:-1], start=parameters_i+1):
-			print i, word
 			for j, p in enumerate(parameters.keys()):
 				match = jellyfish.jaro_distance(unicode(p), unicode(word)) 
 				if match > threshold:
@@ -315,12 +315,10 @@ def natural_language_effect():
 									best_match_color.chance = match
 									best_match_color.index = j
 							if best_match_color.chance > 0:
-								print "assign match"
 								rgb = map(lambda x: x/255.0, list(eval(COLORS[best_match_color.index]['rgb']))) + [1]
 								parameters[p] = rgb
 		
 					else:	
-						print "try to convert", words[i+1]			
 						try: 
 							value = correct_type(words[i+1])
 						except IndexError:
@@ -338,6 +336,12 @@ def natural_language_effect():
 		parameters["areas"] = areas
 
 	inpterpretation = {"effect": best_match_effect.effect, "areas": areas, "parameters": parameters}
+	try:
+		inpterpretation["color"] = COLORS[best_match_color.index]['name']
+	except NameError:
+		pass ## no color in parameters
+	except:
+		pass ## something else
 
 	##add effect
 	lid = master.add(name=best_match_effect.effect, parameters=parameters)
