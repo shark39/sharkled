@@ -11,7 +11,7 @@ from time import sleep
 from logging import FileHandler, Formatter, getLogger, DEBUG
 from flask import Flask, request, Response, make_response, jsonify
 from flask.ext.autodoc import Autodoc
-
+from functools import wraps
 from constants import *
 from colornames import COLORS
 
@@ -231,7 +231,7 @@ def effect(name):
 				pass #wavelength = int(post.get('wavelength') * length)
 
 	lid = master.add(name=name, parameters=post)
-	return jsonify(id=lid, name=name, parameters=master.getControllerParameters(lid), warnings=warnings), 201)
+	return jsonify(id=lid, name=name, parameters=master.getControllerParameters(lid), warnings=warnings), 201
 
 
 ## reset
@@ -276,14 +276,18 @@ def natural_language_effect():
 	text = post.get('text')
 
 	nlp = NLP()
-	interpretation = nlp.process(test)
-	
+	interpretation = nlp.process(text)
+	areas = Validator.areas({"areas": interpretation.areas}).post["areas"]
+	z = Validator.z(interpretation.parameters).post['z']
+	parameters = interpretation.parameters
+	parameters['z'] = z
+	parameters['areas'] = areas
 	
 	##add effect
-	lid = master.add(name=interpretation.effect, parameters=interpretation.parameters)
-	effectreturn =  dict(id=lid, name=best_match_effect.effect, parameters=master.getControllerParameters(lid))
+	lid = master.add(name=interpretation.effect, parameters=parameters)
+	effectreturn =  dict(id=lid, name=interpretation.effect, parameters=master.getControllerParameters(lid))
 
-	return getResponse(jsonify(inpterpretation=inpterpretation, effect=effectreturn), 201) 
+	return getResponse(jsonify(interpretation={}, effect=effectreturn), 201) 
 
 
 
