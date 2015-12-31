@@ -1,8 +1,8 @@
 import unittest
-
+import json
 from flask import Flask, jsonify, request, url_for, abort, send_from_directory, render_template, send_file, Response, make_response
 from api import app
-
+from constants import *
 
 class APITestCase(unittest.TestCase):
 
@@ -21,9 +21,16 @@ class APITestCase(unittest.TestCase):
 			return url_for(endpoint, **kwargs)
 
 
+	##############################
+	# tests
+	##############################
 
 	def test_get_all_leds(self):
-		self.test_app.open(self.api_url_for('getLeds'), 'GET')
+		response = self.test_app.open(self.api_url_for('getLeds'), 'GET')
+		assert response.status_code == 200
+		data = json.loads(response.data)
+		assert len(data["leds"]) == LEDS_COUNT
+
 
 
 
