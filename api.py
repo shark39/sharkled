@@ -85,11 +85,34 @@ master = LEDMaster()
 ###############
 
 
+### decoraters
 
-@app.route('/thingsee', methods=['POST'])
-def thingsee():
-	return getResponse()
-	
+def add_response_headers(headers={}):
+    """This decorator adds the headers passed in to the response"""
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            resp = make_response(f(*args, **kwargs))
+            h = resp.headers
+            for header, value in headers.items():
+                h[header] = value
+            return resp
+        return decorated_function
+    return decorator
+
+
+def browser_headers(f):
+    """This decorator is awesome"""
+    @wraps(f)
+    @add_response_headers({'Access-Control-Allow-Origin': '*', \
+    	'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS', \
+    	'Access-Control-Allow-Headers': 'Content-Type, Access-Control-Allow-Headers, Authorization, X-Requested-With'})
+    def decorated_function(*args, **kwargs):
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+
 
 @app.route('/dev/logs/debug')
 def debuglogs():
@@ -143,13 +166,6 @@ def effects():
 
 
 	
-@app.route("/off")
-@auto.doc()
-def off():
-	'''switch everything off'''
-	pass
-	return getResponse()
-
 @app.route("/running")
 def getThreads():
 
@@ -263,7 +279,10 @@ def adjust(cid):
 def natural_language_effect():
 	if request.method == 'OPTIONS':
 		return getResponse()
-	post = request.get_json() or 'Wand chase'
+	post = request.get_json() 
+	if not post:
+		return getResponse()
+
 	## parsing response
 	threshold = 0.75
 	text = post.get('text')
