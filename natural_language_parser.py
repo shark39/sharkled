@@ -9,6 +9,7 @@ class NLP:
 		## find areas
 		self.threshold = 0.75
 		self.parameters_indicators = [u"with", u"parameters"]
+		self.gap_words = [u"and"]
 		self.effect_choices = [e['name'] for e in LEDMaster.getEffects()]
 		self.inpterpretation = []
 
@@ -83,45 +84,70 @@ class NLP:
 			for j, p in enumerate(parameters.keys()):
 					match = jellyfish.jaro_distance(unicode(p), unicode(word)) 
 					if match > self.threshold:
-						##convert value after keyword to correct type
-						correct_type = type(parameters[p])
-						if correct_type == list: ## assume that we have a color here
-								best_match_color = collections.namedtuple('Match', 'index chance')
-								best_match_color.chance = 0
-								for j, c in enumerate(COLORS):
-									match = jellyfish.jaro_distance(unicode(c['name']), unicode(words[i+1])) 
-									if match > self.threshold and match > best_match_color.chance:
-										best_match_color.chance = match
-										best_match_color.index = j
-								if best_match_color.chance > 0:
-									rgb = map(lambda x: x/255.0, list(eval(COLORS[best_match_color.index]['rgb']))) + [1]
-									parameters[p] = rgb
-			
-						else:	
-							try: 
-								value = correct_type(words[i+1])
-							except IndexError:
-								break ## last index
-							except:
-								print "exception"
-								
-								print "Failed to decode ", words[i], words[i+1]
-							else:
-								parameters[p] = value
+						value = self.understandParameterValue(p, parameters[p], words[i+1:])
+						parameters[p] = value
+		return parameters
 
-	def understandParameterValue(self, parametername, words):
+						
+	def understandParameterValue(self, parametername, defaultvalue, words):
 		'''words is a list with all words after the parametername'''
+		##convert value after keyword to correct type
+		correct_type = type(defaultvalue)
+		if correct_type == list and len(defaultvalue) == 4: ## assume that we have a color here
+			value = self.interpretAsColor(words)
+		else:	
+			try: 
+				value = correct_type(words[0])
+			except IndexError:
+				pass ## last index
+			except:
+				print "exception"					
+				print "Failed to decode ", words[0]
+		
+		if value:
+			return value
+		return defaultvalue
+					
+
+	def interpretAsColor(self, words):
+		'''tries to map to first couple of words to a color'''
+		best_match_color = collections.namedtuple('Match', 'index chance')
+		best_match_color.chance = 0
+		for i, word in enumerate(words):
+			for j, color in enumerate(COLORS):
+				matches = []
+				for k, c in enumerate(color['name'].split(), start=0):
+					try:
+						m = jellyfish.jaro_distance(unicode(c), unicode(words[i+k])) 
+					except IndexError:
+						break ## end of words
+					else:
+						matches.append(m)
+				match = sum(matches)/len(matches)
+				if match > self.threshold and match > best_match_color.chance:
+					best_match_color.chance = match
+					best_match_color.index = j
+					if best_match_color.chance > 0:
+						rgb = map(lambda x: x/255.0, list(eval(COLORS[best_match_color.index]['rgb']))) + [1]
+						return rgb
+		return None
+
+	def interpretAsPercent(self, words):
 		pass
+				
+
 
 			
 						
 
 	
 if __name__ == "__main__":
+	## TODO and wird als wand interpretiert
 	nlp = NLP()
-	messages = ["new effect chaser with interval 1000 and color green", "rainbow for all"]
+	messages = ["new effect chaser with interval 1000 color jungle green", "rainbow for all", "chase with interval 3000 count 10"]
 	print "Test NLP"
 	for m in messages:
+		print m
 		r1 =  nlp.process(m)
 		print "Effect:", r1.effect
 		print "Areas:", r1.areas
