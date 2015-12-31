@@ -601,7 +601,12 @@ COLORS = [
 },
 {
 "hex": "#926EAE",
-"name": "Violet (Purple)",
+"name": "Violet",
+"rgb": "(146, 110, 174)"
+},
+{
+"hex": "#926EAE",
+"name": "Purple",
 "rgb": "(146, 110, 174)"
 },
 {
