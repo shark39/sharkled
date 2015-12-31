@@ -69,7 +69,7 @@ class LEDMaster:
 
 	def reset(self):
 		''' deletes all controllers and set everything to black'''
-		self.controllers = OrderedDict()
+		self.controllers = collections.OrderedDict()
 		self.clear()
 
 	def clear(self):
