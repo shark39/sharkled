@@ -16,7 +16,8 @@ from constants import *
 from colornames import COLORS
 
 from LedControl import LEDController, LEDMaster
-
+from parameter_validation import Validator
+from natural_language_parser import NLP 
 
 def mergergb(r, g, b):
 	return str('%6x' %((r << 16) + (g << 8) + b)).replace(' ', '0')
@@ -149,6 +150,8 @@ def shutdown():
 
 
 @app.route("/leds")
+@browser_headers
+@auto.doc()
 def getLeds():
 	return getResponse(jsonify(leds=master.getLeds()))
 
@@ -163,11 +166,9 @@ def ranges():
 def effects():
 	return getResponse(jsonify(effects=LEDMaster.getEffects()), 200)
 
-
-
 	
 @app.route("/running")
-def getThreads():
+def getControllers():
 
 	return getResponse(jsonify(controllers=master.controllers.items()), 200)
 
@@ -197,15 +198,18 @@ def stop_controller():
 ## Effects
 ####################
 
-
-
 @app.route("/effect/<name>", methods=['POST', 'OPTIONS'])
+@browser_headers
 def effect(name):
-	if request.method == 'OPTIONS':
-		return getResponse()
+	'''Add New Effect. Name is equally to name defined in class LedEffect'''
 	post = request.get_json()
-	if not post:
-		post = {"areas": ["all"]}
+	warnings = []
+	## do validation
+	for f in [Validator.areas, Validator.z]:
+		validation = f(post)
+		warnings += validation.warnings
+		post = validation.post
+	
 	for k in post.iterkeys():
 		if k == 'color':
 			if len(post[k]) == 3: 
@@ -225,23 +229,9 @@ def effect(name):
 		if name == 'pulsate':
 			if post.get('wavelength') <= 1:
 				pass #wavelength = int(post.get('wavelength') * length)
-		
-		
-	## add default z-index
-	if 'z' not in post:
-		post['z'] = 0
-	## add default area
-	if 'areas' not in post:
-		post['areas'] = ['all']
-	if type(post["areas"]) == str:
-		post["areas"] = [post["areas"]]
-
-	for i, a in enumerate(post['areas']):
-		post['areas'][i] = a.capitalize()
-
 
 	lid = master.add(name=name, parameters=post)
-	return getResponse(jsonify(id=lid, name=name, parameters=master.getControllerParameters(lid)), 201)
+	return jsonify(id=lid, name=name, parameters=master.getControllerParameters(lid), warnings=warnings), 201)
 
 
 ## reset
@@ -275,95 +265,22 @@ def adjust(cid):
 	return getResponse('', 204)
 
 
-@app.route("/jellyfish/effect", methods=['GET', 'OPTIONS', 'POST'])
+@app.route("/nlp/effect", methods=['GET', 'OPTIONS', 'POST'])
+@browser_headers
 def natural_language_effect():
-	if request.method == 'OPTIONS':
-		return getResponse()
 	post = request.get_json() 
 	if not post:
 		return getResponse()
-
 	## parsing response
 	threshold = 0.75
 	text = post.get('text')
+
+	nlp = NLP()
+	interpretation = nlp.process(test)
 	
-	## find areas
-	areas = []
-	words = text.split()
-	for i, word in enumerate(words): ## TODO detect stuff like Balken1, Wand2
-		for a in AREAS:
-			if a[-1] in '1234':
-				continue ## TODO detect if number is attached
-			if jellyfish.jaro_distance(unicode(a), unicode(word)) > threshold and a not in areas:
-				areas.append(a)
 	
-	## find effect name
-	## word with highest match and before keyword parameters
-	choices = [e['name'] for e in LEDMaster.getEffects()]
-	best_match_effect = collections.namedtuple('Match', 'effect chance')
-	best_match_effect.chance = 0
-	parameters_i = 0 ## store the index of parameters to continue faster
-	for effect in choices:
-		for i, word in enumerate(words):
-			if jellyfish.jaro_distance(u"parameter", unicode(word)) > threshold:
-				parameters_i = i
-				break
-			else:
-				match = jellyfish.jaro_distance(unicode(effect), unicode(word)) 
-				if match > best_match_effect.chance:
-					best_match_effect.chance = match
-					best_match_effect.effect = effect
-				continue ## prevent from breaking out of the second loop
-			break
-
-	## detect parameters
-	parameters = LEDMaster.getDefaultParameters(best_match_effect.effect) ## always load default 
-	if parameters_i > 0: ## no parameters
-		for i, word in enumerate(words[parameters_i+1:-1], start=parameters_i+1):
-			for j, p in enumerate(parameters.keys()):
-				match = jellyfish.jaro_distance(unicode(p), unicode(word)) 
-				if match > threshold:
-					##convert value after keyword to correct type
-					correct_type = type(parameters[p])
-					if correct_type == list: ## assume that we have a color here
-							best_match_color = collections.namedtuple('Match', 'index chance')
-							best_match_color.chance = 0
-							for j, c in enumerate(COLORS):
-								match = jellyfish.jaro_distance(unicode(c['name']), unicode(words[i+1])) 
-								if match > threshold and match > best_match_color.chance:
-									best_match_color.chance = match
-									best_match_color.index = j
-							if best_match_color.chance > 0:
-								rgb = map(lambda x: x/255.0, list(eval(COLORS[best_match_color.index]['rgb']))) + [1]
-								parameters[p] = rgb
-		
-					else:	
-						try: 
-							value = correct_type(words[i+1])
-						except IndexError:
-							break ## last index
-						except:
-							print "exception"
-							
-							print "Failed to decode ", words[i], words[i+1]
-						else:
-							parameters[p] = value
-		
-	if not areas:
-		parameters["areas"] = ["All"]
-	else:
-		parameters["areas"] = areas
-
-	inpterpretation = {"effect": best_match_effect.effect, "areas": areas, "parameters": parameters}
-	try:
-		inpterpretation["color"] = COLORS[best_match_color.index]['name']
-	except NameError:
-		pass ## no color in parameters
-	except:
-		pass ## something else
-
 	##add effect
-	lid = master.add(name=best_match_effect.effect, parameters=parameters)
+	lid = master.add(name=interpretation.effect, parameters=interpretation.parameters)
 	effectreturn =  dict(id=lid, name=best_match_effect.effect, parameters=master.getControllerParameters(lid))
 
 	return getResponse(jsonify(inpterpretation=inpterpretation, effect=effectreturn), 201) 
