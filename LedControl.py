@@ -12,7 +12,6 @@ import re #for parsing areas
 import inspect
 
 from constants import *
-from timer import Timer
 
 
 if sys.platform in ['linux2', 'linux']:
