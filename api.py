@@ -272,7 +272,6 @@ def natural_language_effect():
 	if not post:
 		return getResponse()
 	## parsing response
-	threshold = 0.75
 	text = post.get('text')
 
 	nlp = NLP()
@@ -294,6 +293,26 @@ def natural_language_effect():
 @app.route('/docs')
 def documentation():
 	return auto.html()
+
+
+@app.route('/help')
+def showEffects():
+	out = ''
+	for effect in LEDMaster.getEffects():
+		out += '<h1>' + effect['name'] + '</h1>'
+		desc = LEDMaster.getDescription(effect['name'])
+		desc = desc.replace('Description:', '<h4>Description</h4>')
+		desc = desc.replace('Parameters:', '<h4>Parameters</h4>')
+		pi = desc.find('<h4>Parameters</h4>')+len('<h4>Parameters</h4>')
+		pdesc = ''
+		for pname_pdesc in desc[pi:].split('\n'):
+			if pname_pdesc.count(':') == 1:
+				pname, pdes = pname_pdesc.split(':')
+				pdesc += '<b>%s:</b> %s <br>' %(pname.strip(), pdes) 
+		out += desc[:pi] + pdesc
+	return out
+
+
 
 if __name__ == '__main__':
 	def signal_handler(signal, frame):
