@@ -169,8 +169,8 @@ def effects():
 	
 @app.route("/running")
 def getControllers():
-
-	return getResponse(jsonify(controllers=master.controllers.items()), 200)
+	controllers = [{"id": cid, "name" : c.name, "parameters": c.parameters} for cid, c in master.controllers.items()]
+	return getResponse(jsonify(controllers=controllers), 200)
 
 
 @app.route("/brightness/<float:brightness>", methods=["POST"])
