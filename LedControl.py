@@ -2,18 +2,19 @@ import threading
 from threading import Thread
 import time # for timestamp
 from functools import partial
-import sys 
-import logging
-import random
-import math
+import sys # for interruption handler
+import logging 
+import random # for randomization of course
+import math # for e.g. sin
 import colorsys # for converting to hsv
-import collections
+import collections # for e.g. ordereddict
 import re #for parsing areas
-import inspect
+import inspect # for parsing default args of methods 
 
 from constants import *
 
 
+### If not running on linux/raspberry pi import a mock
 if sys.platform in ['linux2', 'linux']:
 	## using raspberry
 	RPI = True
@@ -24,7 +25,6 @@ else:
 	RPI = False
 	t = Thread(target=ws.win.mainloop, args=())
 	#t.start()
-
 
 #logging.basicConfig(filename='ledcontrol.log',level=logging.DEBUG)
 
@@ -122,9 +122,6 @@ class LEDMaster:
 		'''returns milliseconds as integer'''
 		return int(time.time()*1000)
 
-	def getTimestamp(self):
-		'''returns milliseconds as integer'''
-		return int(time.time()*1000)
 				
 	def writeBuffer(self):
 		'''this function is running in an extra thread
@@ -133,9 +130,8 @@ class LEDMaster:
 		mixInto = lambda base, mix: map(lambda (b, m) : b*(1-mix[3])+m*mix[3], zip(base, mix)) ## interpolate with alpha value of mix
 		self.buffer = LEDS_COUNT*[[0,0,0]]
 		while True:
-			if self.finish:
-				break
-			timestamp = self.getTimestamp()
+			if self.finish: break
+			timestamp = LEDMaster.getTimestamp()
 			controllers = self.controllers.values() #because of thread problems fetching before iterating is important
 			for controller in controllers:
 				if controller.paused: continue
@@ -152,7 +148,7 @@ class LEDMaster:
 				else:
 					ws.set_pixel(i - skip, int(255*c[0]), int(255*c[1]), int(255*c[2]))
 			ws.show()
-			timestampNow = self.getTimestamp()
+			timestampNow = LEDMaster.getTimestamp()
 			wait = (self.actualframerate - (timestampNow - timestamp))
 			if wait > 0:
 				time.sleep(wait / 1000.0)
@@ -169,6 +165,7 @@ class LEDController:
 		LEDController.id += 1
 		self.paused = False
 		self._updateParameters(parameters)
+		self.lastTs = None
 
 	def __repr__(self):
 		return "LEDController " + self.name + '<' + str(len(self.pos)) + '>'
@@ -179,10 +176,22 @@ class LEDController:
 
 	def _updateParameters(self, parameters):
 		self.parameters = parameters
-		self.areas = parameters.get('areas') or ['all']
+		self.areas = parameters.get('areas') or ['All']
 		self.pos = self._resolve(self.areas)
 		self.offset = parameters.get('offset') or 0
 		if self.offset == '-1': self.offset = - int(time.time()*1000)
+		self.vars = {} ## dict to store values
+
+	def _getVar(self, name, default, setIfNew=True):
+		if name in self.vars:
+			return self.vars[name]
+		if setIfNew:
+			self.vars[name] = default
+		return default
+
+	def _setVar(self, name, value):
+		self.vars[name] = value
+
 
 	def _resolve(self, areas):
 		'''...'''
@@ -208,11 +217,14 @@ class LEDController:
 		if mergeType == 'concat':
 			for array in self.pos:
 				pos += array
-			return [(getattr(self, self.name)(ts, pos, **self.parameters), pos)]	
+			buffer = [(getattr(self, self.name)(ts, pos, **self.parameters), pos)]	
+			self.lastTs = LEDMaster.getTimestamp()
+			return buffer
 		elif mergeType == 'syncro':
 			buffers = []
 			for array in self.pos:
 				buffers.append((getattr(self, self.name)(ts, array, **self.parameters), array))
+			self.lastTs = LEDMaster.getTimestamp()
 			return buffers
 
 	def _mixInto(self, base, mix):
@@ -328,6 +340,40 @@ class LEDEffect(LEDController):
 			buffer.append(self._mixInto(background, color[:3] + [(color[3] + alpha) / 2]))
 		return buffer
 
+	def bounce(self, ts, pos, interval=1000, color=[1,1,1,1], background=[0,0,0,1], minpeg=1, maxpeg=100, mode='linear', soft=0, samespeed=False, **kwargs):
+		'''Description: generates a levelmeter like bouncing
+		Parameters:
+			interval: time in milliseconds for one complete move 
+			color: 
+			background:
+			minpeg: minimum 
+			maxpeg: maximum
+			mode: not implemented so far
+			soft: number of interpolated pixel (not implemented so far)
+			samespeed: set to True to keep the speed (not implemented so far)'''
+		to = self._getVar('to', random.randint(minpeg, maxpeg))
+		direction = self._getVar('direction',  1)
+		pix = (ts % interval)*(2.0*to/interval)
+		if pix > to:
+			pix = 2 * to - pix
+			self._setVar('direction', -1)
+		elif direction == -1:
+			self._setVar('direction', 1)
+			self._setVar('to', random.randint(minpeg, maxpeg))
+		pix = int(round(pix))
+		return [color] * pix + [background] * (len(pos)-pix)
+
+
+
+
+
+
+
+
+
+
+
+
 
 	def christmas(self, ts, pos, **kwargs):
 		color1 = self.color(ts, pos, color=[1, 0.1, 0.25, 1])
@@ -342,18 +388,20 @@ class LEDEffect(LEDController):
 if __name__ == '__main__':
 
 
+
+
 	master = LEDMaster()
 	print LEDMaster.getEffects()
 
 	
 	master.add(name='christmas')
-	master.add(name='chase', parameters={'count': 4, 'areas': ['all'], 'interval': 60000,  'color': [0,0,1,0.8], 'soft': 20, 'width': 1, 'background': [0,0,0,0]})
+	master.add(name='chase', parameters={'count': 4, 'areas': ['All'], 'interval': 60000,  'color': [0,0,1,0.8], 'soft': 20, 'width': 1, 'background': [0,0,0,0]})
 	wait = raw_input("Enter to finish")
 	master.finish = True
 
 	#id1 = master.add(name='bucketColor', parameters = {'areas': ['Wand']})
-	master.add(name='color', parameters = {'areas': ['all'], 'color': [1, 0.1, 0.25, 1]})
-	master.add(name='rainbow', parameters = {'areas': ['all'], 'alpha': 0.4, 'interval': 10000})
+	master.add(name='color', parameters = {'areas': ['All'], 'color': [1, 0.1, 0.25, 1]})
+	master.add(name='rainbow', parameters = {'areas': ['All'], 'alpha': 0.4, 'interval': 10000})
 	#wait = raw_input("Enter to finish")
 	master.reset()
 	#time.sleep(3)
