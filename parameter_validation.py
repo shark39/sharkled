@@ -1,4 +1,3 @@
-
 import collections
 from constants import *
 
@@ -11,6 +10,7 @@ class Validator:
 		- if no area, it adds all
 		- if area has wrong format it try to convert
 		- if area not valid it ignores the area
+		- if area is empty, replace with all
 		- if dublicates in area, remove the latest
 		- correct uppercase and lowercase letters
 		'''
@@ -21,6 +21,11 @@ class Validator:
 		if not validation.post.has_key("areas"):
 			validation.post["areas"] = ['All']
 			validation.warnings.append("Parameter 'areas' was missing, replaced with All")
+			return validation
+		# if area is empty, replace with all
+		if validation.post["areas"] == []:
+			validation.post["areas"] = ['All']
+			validation.warnings.append("Parameter 'areas' was empty list, added All")
 			return validation
 		#if area has wrong format it try to convert
 		if type(validation.post["areas"]) != list:
