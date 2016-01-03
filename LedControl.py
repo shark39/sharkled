@@ -106,7 +106,6 @@ class LEDMaster:
 	@staticmethod
 	def getDefaultParameters(effect):
 		'''return all the default parameters for the given effect name'''
-		out = []
 		methods = inspect.getmembers(LEDEffect)
 		for name, func in methods:
 			if name == effect:
@@ -115,6 +114,17 @@ class LEDMaster:
 					## first two parameters are ts and pos and self, all the others have default values
 					return dict(zip(parameters.args[3:], parameters.defaults))	
 		return {}
+
+	@staticmethod
+	def getDescription(effect):
+		'''return all the default parameters for the given effect name'''
+		methods = inspect.getmembers(LEDEffect)
+		for name, func in methods:
+			if name == effect:
+				return inspect.cleandoc(func.__doc__)
+		return ''
+
+
 
 
 	@staticmethod
@@ -243,7 +253,7 @@ class LEDEffect(LEDController):
 	def color(self, ts, pos, color=[1,1,1,1], **kwargs):
 		'''Description: set a solid color
 		Parameters: 
-			color | 4-tupel of floats between 0..1 
+			color: 4-tupel of floats between 0..1 
 		'''
 		return len(pos) * [color]
 
@@ -367,15 +377,8 @@ class LEDEffect(LEDController):
 
 
 
-
-
-
-
-
-
-
-
 	def christmas(self, ts, pos, **kwargs):
+		'''special combination for christmas mood'''
 		color1 = self.color(ts, pos, color=[1, 0.1, 0.25, 1])
 		color2 = self.rainbow(ts, pos, alpha=0.4, interval=10000)
 		colormix = self._interpolate(color1, color2)

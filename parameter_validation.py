@@ -85,7 +85,8 @@ class Validator:
 					except:
 						warnings.append("can not decode color parameter %s (tried as array)" %str(post[key]))
 						del post[key]
-				elif type(post.get(key)) == str:
+				elif type(post.get(key)) in [str, unicode]:
+					post[key] = str(post[key])
 					if post[key].find('#') == 0:
 						try: 
 							post[key] = map(lambda x: int(x, 16)/255.0, [post[key][1:3], post[key][3:5], post[key][5:7]]) + [1]
@@ -143,6 +144,9 @@ if __name__ == "__main__":
 	print "Test wrong area and dublicate"
 	v3 = Validator.areas({"areas" :["Balken1", "Balken5", "Balken1"]})
 	assert v3.post["areas"] == ["Balken1"]
+	print "Test wand"
+	v3 = Validator.areas({"areas" :"wand"})
+	assert v3.post["areas"] == ["Wand"]
 
 	print "Test Validator.color"
 	print "Test hex"
@@ -150,6 +154,10 @@ if __name__ == "__main__":
 	assert v1.post["color"] == [1, 1, 1, 1]
 	print "Test name"
 	v = Validator.color({"color" : "Sunset orange"})
+	assert v.post["color"] == [253.0/255, 94.0/255, 83.0/255, 1]
+
+	print "Test name unicode"
+	v = Validator.color({"color" : u"sunset orange"})
 	assert v.post["color"] == [253.0/255, 94.0/255, 83.0/255, 1]
 
 	print "Test normal len 3"

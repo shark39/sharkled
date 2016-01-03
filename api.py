@@ -49,22 +49,6 @@ def getPosition(areas=None, indexes=None, **kwargs):
 			#app.logger.debug("Cannot parse range. " + str(ex))
 	return pos
 
-def getColor(**kwargs):
-	#app.logger.debug("Got information to decode for color" + str(kwargs))
-	if 'rgb' in kwargs.keys():
-		return map(lambda x: 1.0*x/255, splitrgb(kwargs['rgb']))
-	if 'r' in kwargs.keys() and 'g' in kwargs.keys() and 'b' in kwargs.keys():
-		if any(map(lambda x: x > 1, [float(kwargs['r']), float(kwargs['g']), float(kwargs['b'])])):
-			return float(kwargs['r'])/255, float(kwargs['g'])/255, float(kwargs['b'])/255
-		else:
-			return float(kwargs['r']), float(kwargs['g']), float(kwargs['b'])
-	else:
-		raise Exception("Cannot decode color.")
-
-
-
-
-
 
 app = Flask(__name__)
 auto = Autodoc(app)
@@ -114,17 +98,6 @@ def browser_headers(f):
 
 
 
-
-@app.route('/dev/logs/debug')
-def debuglogs():
-	with open('flask.log') as f:
-		return "/n".join(f.read().split('/n')[-5:])
-
-@app.route('/dev/logs/requests')
-def requestlogs():
-	with open('nohup.out') as f:
-		return "/n".join(f.read().split('/n')[-5:])
-
 @app.route("/debugger")
 def dev():
 	raise
@@ -144,59 +117,44 @@ def shutdown():
 ##############################
 ###############################	
 
-###############################
-## BASICS			###########
-###############################
-
+#############################
+## GETTERS			       ##
+#############################
 
 @app.route("/leds")
 @browser_headers
 @auto.doc()
 def getLeds():
+	'''array with 3-tuple of the current color of the leds'''
 	return getResponse(jsonify(leds=master.getLeds()))
 
 @app.route("/areas")
+@browser_headers
 @auto.doc()
 def ranges():
-	'''Returns a json of given ranges'''
+	'''Returns a list of given ranges'''
 	return getResponse(jsonify(areas=AREAS.keys()), 200)
 
 @app.route("/effects")
+@browser_headers
 @auto.doc()
 def effects():
+	'''list with all available effects and default parameters'''
 	return getResponse(jsonify(effects=LEDMaster.getEffects()), 200)
 
 	
 @app.route("/running")
+@browser_headers
+@auto.doc()
 def getControllers():
+	'''id, name and parameters of all running effects'''
 	controllers = [{"id": cid, "name" : c.name, "parameters": c.parameters} for cid, c in master.controllers.items()]
 	return getResponse(jsonify(controllers=controllers), 200)
 
 
-@app.route("/brightness/<float:brightness>", methods=["POST"])
-@auto.doc()
-def brightness(brightness):
-	#TODO ws.brightness(brightness)
-	return getResponse()
-
-
-@app.route("/stop/<int:cid>", methods=["POST"])
-@auto.doc()
-def stop_controller():
-	'''stopps the running controller
-	Parameters: name or id'''
-	app.logger.debug("finish controller %i" %cid)
-	master.finishControllerById(cid) 
-	return getResponse("finished", 200)
-
-#################
-#################
-#################
-
-
-####################
-## Effects
-####################
+#############################
+## WORKFLOW 		       ##
+#############################
 
 @app.route("/effect/<name>", methods=['POST', 'OPTIONS'])
 @browser_headers
@@ -205,16 +163,25 @@ def effect(name):
 	post = request.get_json()
 	warnings = []
 	## do validation
+	## validation for all
 	for f in [Validator.areas, Validator.z]:
 		validation = f(post)
 		warnings += validation.warnings
 		post = validation.post
-	
-	for k in post.iterkeys():
-		if k == 'color':
-			if len(post[k]) == 3: 
-				post[k].append(1) ## add alpha value for color
 
+	## validation for specific
+	validations = {"color": [lambda x: Validator.color(x, ['color'])]}
+	if name in validations:
+		for f in validations[name]:
+			validation = f(post)
+			warnings += validation.warnings
+			post = validation.post
+	else:
+		warnings.append("No Validator defined for effect parameters")
+	
+
+	### outsource the following code in validators
+	for k in post.iterkeys():
 		if name == 'sequence' and k == 'fadespeed' and post['fadespeed'] < 1:
 			post[k] = post[k] * post['interval'] # make fadespeed from relative to absolute depending on interval 
 		if name == 'sequence' and k == 'sequence':
@@ -225,7 +192,6 @@ def effect(name):
 				pass #post['width'] = int(post['width'] * post['pos'])
 			if post.get('soft') and post['soft'] < 1: 
 				post['soft'] = int(post['soft'] * post['width'])
-
 		if name == 'pulsate':
 			if post.get('wavelength') <= 1:
 				pass #wavelength = int(post.get('wavelength') * length)
@@ -234,7 +200,6 @@ def effect(name):
 	return jsonify(id=lid, name=name, parameters=master.getControllerParameters(lid), warnings=warnings), 201
 
 
-## reset
 @app.route("/reset", methods=['POST', 'OPTIONS'])
 @auto.doc()
 def reset():
@@ -244,25 +209,25 @@ def reset():
 	master.reset()
 	return getResponse('', 204)
 
-@app.route("/clear", methods=['POST', 'OPTIONS'])
-def clear():
-	'''set mask and color to default'''
-	if request.method == 'OPTIONS':
-		return getResponse()
-	master.clear()
-	return getResponse('', 204)
 
-
-@app.route("/adjust/<int:cid>", methods=['POST', 'OPTIONS'])
+@app.route("/effect/adjust/<int:cid>", methods=['POST', 'OPTIONS'])
+@browser_headers
 def adjust(cid):
-	if request.method == 'OPTIONS':
-		return getResponse()
-
 	post = request.get_json()
 
 	controller = master.getController(cid)
 	controller.parameters = post
 	return getResponse('', 204)
+
+
+@app.route("/stop/<int:cid>", methods=["POST"])
+@auto.doc()
+def stop_controller():
+	'''stopps the running controller
+	Parameters: name or id'''
+	app.logger.debug("finish controller %i" %cid)
+	master.finishControllerById(cid) 
+	return getResponse("finished", 200)
 
 
 @app.route("/nlp/effect", methods=['GET', 'OPTIONS', 'POST'])
@@ -290,6 +255,10 @@ def natural_language_effect():
 
 
 
+#################
+#Docs&Help     ##
+#################
+
 @app.route('/docs')
 def documentation():
 	return auto.html()
@@ -313,7 +282,6 @@ def showEffects():
 	return out
 
 
-
 if __name__ == '__main__':
 	def signal_handler(signal, frame):
 	    master.finish = True
@@ -324,5 +292,4 @@ if __name__ == '__main__':
 	else:
 		debug = False
 	app.run(host='0.0.0.0', port=9000, debug=debug)
-		
-	
+			

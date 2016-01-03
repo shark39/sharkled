@@ -92,6 +92,7 @@ class NLP:
 	def understandParameterValue(self, parametername, defaultvalue, words):
 		'''words is a list with all words after the parametername'''
 		##convert value after keyword to correct type
+		value = None
 		correct_type = type(defaultvalue)
 		if correct_type == list and len(defaultvalue) == 4: ## assume that we have a color here
 			value = self.interpretAsColor(words)
@@ -144,7 +145,7 @@ class NLP:
 if __name__ == "__main__":
 	## TODO and wird als wand interpretiert
 	nlp = NLP()
-	messages = ["new effect chaser with interval 1000 color jungle green", "rainbow for all", "chase with interval 3000 count 10"]
+	messages = ["new effect chaser with interval 1000 color jungle green", "rainbow for all", "chase with interval 3000 count 10", "chaser"]
 	print "Test NLP"
 	for m in messages:
 		print m

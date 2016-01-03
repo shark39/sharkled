@@ -20,6 +20,15 @@ class APITestCase(unittest.TestCase):
 		with app.test_request_context('/'):
 			return url_for(endpoint, **kwargs)
 
+	def request(self, method, url, **kwargs):
+	    headers = kwargs.get('headers', {})
+	    
+	    headers['Content-Type'] = 'application/json'
+
+	    kwargs['headers'] = headers
+
+	    return self.test_app.open(url, method=method, **kwargs)
+
 
 	##############################
 	# tests
@@ -30,6 +39,15 @@ class APITestCase(unittest.TestCase):
 		assert response.status_code == 200
 		data = json.loads(response.data)
 		assert len(data["leds"]) == LEDS_COUNT
+
+
+	def test_effect_color(self):
+		response = self.request('POST', '/effect/color', data={"areas": "all"})
+		print response.status_code
+		assert response.status_code == 201
+		data = json.loads(response.data)
+		print data
+
 
 
 
