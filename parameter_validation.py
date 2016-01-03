@@ -1,6 +1,6 @@
 import collections
 from constants import *
-
+from colornames import COLORS
 class Validator:
 	''' '''
 
@@ -54,6 +54,7 @@ class Validator:
 
 	@staticmethod
 	def z(post):
+		'''if z not in post, set z=0'''
 		warnings = []
 		if not post.has_key("z"):
 			warnings.append("Missing parameter z, added z=0")
@@ -63,6 +64,68 @@ class Validator:
 		validation.warnings = warnings
 		validation.post = post
 		return validation
+
+	@staticmethod
+	def color(post, keywords=['color', 'background']):
+		'''convert from rgb 0..255
+		convert from rgb 0..1
+		convert from rgb hex
+		convert from colorname
+		convert from rgb to rgba
+		'''
+		warnings = []
+		for key in keywords:
+			if post.get(key):
+				if type(post.get(key)) == list and len(post[key]) >= 3:
+					try:
+						if all(map(lambda c: 0 <= float(c) <= 1, post[key])):
+							pass ## everything as expected
+						elif all(map(lambda c: 0 <= int(c) <= 255, post[key])): # if 0..255
+							post[key] = [float(c)/255 for c in post[key]]
+					except:
+						warnings.append("can not decode color parameter %s (tried as array)" %str(post[key]))
+						del post[key]
+				elif type(post.get(key)) == str:
+					if post[key].find('#') == 0:
+						try: 
+							post[key] = map(lambda x: int(x, 16)/255.0, [post[key][1:3], post[key][3:5], post[key][5:7]]) + [1]
+						except:
+							warnings.append("can not decode color parameter %s (tried as hex)" %str(post[key]))
+							del post[key]
+					else: ## interpret as color
+						success = False
+						for data in COLORS: ## find in color names
+							if data['name'].lower() == post[key].strip().lower():
+								post[key] = map(lambda x: x/255.0, list(eval(data['rgb']))) + [1]
+								success = True
+								break
+						if not success:
+							warnings.append("Cannot find the color name %s" %post[key])
+							del post[key]
+
+				else:
+					warnings.append("can not decode color parameter %s" %str(post[key]))
+					del post[key]
+
+				if type(post.get(key)) == list and len(post[key]) == 3:
+					warnings.append("missing alpha value in color")
+					post[key].append(1)
+				
+		validation = collections.namedtuple('validation', 'post warnings')
+		validation.warnings = warnings
+		validation.post = post
+		return validation
+
+	@staticmethod
+	def addMissing(func, post):
+		warnings = []
+
+		validation = collections.namedtuple('validation', 'post warnings')
+		validation.warnings = warnings
+		validation.post = post
+		return validation
+
+
 
 
 
@@ -81,6 +144,31 @@ if __name__ == "__main__":
 	v3 = Validator.areas({"areas" :["Balken1", "Balken5", "Balken1"]})
 	assert v3.post["areas"] == ["Balken1"]
 
+	print "Test Validator.color"
+	print "Test hex"
+	v1 = Validator.color({"color" : "#ffffff"})
+	assert v1.post["color"] == [1, 1, 1, 1]
+	print "Test name"
+	v = Validator.color({"color" : "Sunset orange"})
+	assert v.post["color"] == [253.0/255, 94.0/255, 83.0/255, 1]
+
+	print "Test normal len 3"
+	v = Validator.color({"color" : [0.5, 1, 0]})
+	assert v.post["color"] == [0.5, 1, 0, 1]
+
+	print "Test 0..255"
+	v = Validator.color({"color" : [255, 255, 255, 0]})
+	assert v.post["color"] == [1, 1, 1, 0]
+
+	print "Test short list"
+	v = Validator.color({"color" : [255, 25]})
+	assert v.post == {}
+	assert len(v.warnings) == 1
+
+	print "Test bullshit name"
+	v = Validator.color({"color" : "random cyan"})
+	assert v.post == {}
+	assert len(v.warnings) == 1
 
 	print "All Tests finished"
 
