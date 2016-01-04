@@ -1,3 +1,6 @@
+[![Code Climate](https://codeclimate.com/github/shark39/sharkled/badges/gpa.svg)](https://codeclimate.com/github/shark39/sharkled)
+
+
 # sharkled
 Flask backend to control ws2812 led stripes via rasperry pi 
 
