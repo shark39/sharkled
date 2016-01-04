@@ -98,8 +98,9 @@ def browser_headers(f):
 
 
 
-@app.route("/debugger")
+@app.route("/debug")
 def dev():
+	
 	raise
 
 def shutdown_server():

@@ -2,7 +2,7 @@ import threading
 from threading import Thread
 import time # for timestamp
 from functools import partial
-import sys # for interruption handler
+import sys # for exit
 import logging 
 import random # for randomization of course
 import math # for e.g. sin
@@ -238,8 +238,8 @@ class LEDController:
 			return buffers
 
 	def _mixInto(self, base, mix):
-		if len(base) < 4: base.append(1)
-		if len(mix) < 4: mix.append(1) 
+		#if len(base) < 4: base.append(1)
+		#if len(mix) < 4: mix.append(1)  ## no validations here
 		if base[3] == 0: return mix
 		if mix[3] == 0: return base
 		return map(lambda (b, m): b*base[3]*(1-mix[3])+m*mix[3], zip(base, mix)) ## interpolate with alpha value of mix
@@ -373,8 +373,17 @@ class LEDEffect(LEDController):
 		pix = int(round(pix))
 		return [color] * pix + [background] * (len(pos)-pix)
 
-
-
+	def gradient(self, ts, pos, colors=[[1,0,0,1], [0,1,0,1]], **kwargs):
+		'''Description: interpolate over all colors
+		Parameters:
+			colors: array of colors 
+			'''
+		out = []
+		interval_length = int(round(1.0*len(pos)/(len(colors)-1)))
+		for ci in range(1, len(colors)):
+			for j in range(interval_length):
+				out.append(self._mixInto(colors[ci-1], colors[ci][:3] + [1.0*j/interval_length]))
+		return out 
 
 
 	def christmas(self, ts, pos, **kwargs):
@@ -394,7 +403,12 @@ if __name__ == '__main__':
 
 
 	master = LEDMaster()
-	print LEDMaster.getEffects()
+	#print LEDMaster.getEffects()
+
+	master.add(name='gradient', parameters = {'areas': ['Wand'], 'colors': [[1, 0, 0, 1], [0,0,1,1], [0,1,0,1]]})
+	wait = raw_input("Enter to finish")
+	master.finish = True
+	sys.exit()
 
 	
 	master.add(name='christmas')

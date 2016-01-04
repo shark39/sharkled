@@ -29,7 +29,8 @@ class Validator:
 			return validation
 		#if area has wrong format it try to convert
 		if type(validation.post["areas"]) != list:
-			if type(validation.post["areas"]) == str:
+			if type(validation.post["areas"]) in [str, unicode]:
+				validation.post["areas"] = str(validation.post["areas"])
 				validation.post["areas"] = [validation.post["areas"]]
 				validation.warnings.append("Parameter area has the wrong format, converted from string to list")
 			else:
@@ -144,7 +145,7 @@ if __name__ == "__main__":
 	print "Test wrong area and dublicate"
 	v3 = Validator.areas({"areas" :["Balken1", "Balken5", "Balken1"]})
 	assert v3.post["areas"] == ["Balken1"]
-	print "Test wand"
+	print "Test unicode wand"
 	v3 = Validator.areas({"areas" :"wand"})
 	assert v3.post["areas"] == ["Wand"]
 
