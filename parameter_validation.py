@@ -1,6 +1,7 @@
 import collections
 from constants import *
 from colornames import COLORS
+from LedControl import LEDMaster
 class Validator:
 	''' '''
 
@@ -119,8 +120,20 @@ class Validator:
 		return validation
 
 	@staticmethod
-	def addMissing(func, post):
+	def colorlist(post, keywords=["colors"]):
+		'''apply the color validation for all items in the list'''
 		warnings = []
+		for key in keywords:
+			if post.get(key) and type(post[key]) == list:
+				new_value = []
+				for i, c in enumerate(post[key]):
+					v = Validator.color({"color": c})
+					warnings += v.warnings
+					if v.post.get("color"):
+						new_value.append(v.post["color"])
+				post[key] = new_value
+			else:
+				warnings.append("%s must be a list" %key)
 
 		validation = collections.namedtuple('validation', 'post warnings')
 		validation.warnings = warnings
@@ -128,7 +141,32 @@ class Validator:
 		return validation
 
 
+	@staticmethod
+	def addMissing(name, post):
+		warnings = []
+		parameters = LEDMaster.getDefaultParameters(name)
+		for p,v in parameters.items():
+			if p not in post:
+				post[p] = v 
+				warnings.append("Parameter %s was missing, set to default value" %p)
 
+		validation = collections.namedtuple('validation', 'post warnings')
+		validation.warnings = warnings
+		validation.post = post
+		return validation
+
+	@staticmethod
+	def findObsolete(name, post, ignore=['areas', 'z', 'mergeType']):
+		'''will not remove obsolete parameters, but adds a warning to the list'''
+		warnings = []
+		parameters = LEDMaster.getDefaultParameters(name)
+		for p, v in post.items():
+			if p not in parameters and p not in ignore:
+				warnings.append("Parameter %s is obsolete" %p)
+		validation = collections.namedtuple('validation', 'post warnings')
+		validation.warnings = warnings
+		validation.post = post
+		return validation
 
 
 
@@ -178,6 +216,26 @@ if __name__ == "__main__":
 	v = Validator.color({"color" : "random cyan"})
 	assert v.post == {}
 	assert len(v.warnings) == 1
+
+	print "Test Validator.colorlist"
+	print "Test mixed array"
+	v = Validator.colorlist({"colors" : ["random cyan", [1,1,1,1]]})
+	assert v.post["colors"] == [[1,1,1,1]]
+	assert len(v.warnings) == 1
+	
+
+	print "Test Validator.addMissing"
+	print "Test for color"
+	v = Validator.addMissing("color", {"z" : 0})
+	assert v.post["color"] == [1,1,1,1]
+	assert len(v.warnings) == 1
+
+	print "Test Validator.findObsolete"
+	print "Test for color"
+	v = Validator.findObsolete("color", {"z" : 0, "background": ''})
+	assert v.post == {"z" : 0, "background": ''}
+	assert len(v.warnings) == 1
+
 
 	print "All Tests finished"
 
