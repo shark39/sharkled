@@ -14,13 +14,15 @@ class Stripe:
 	leds = LEDS_COUNT*[convrgb(0, 0, 0)]
 	brightness = 1
 
-	def __init__(self):
-				
-		self.win = tk.Tk()
-		self.win.title = "LED Stripe"
+	def __init__(self, gui=True):
+		
+		self.gui = gui
+		if self.gui:
+			self.win = tk.Tk()
+			self.win.title = "LED Stripe"
 
-		self.canvas = tk.Canvas(self.win, bg="black", width=self.LEDS_COUNT*self.scale, height=self.scale)
-		self.canvas.grid()
+			self.canvas = tk.Canvas(self.win, bg="black", width=self.LEDS_COUNT*self.scale, height=self.scale)
+			self.canvas.grid()
 
 	def brightness(self, b=0.2):
 	    self.brightness = b
@@ -68,9 +70,10 @@ class Stripe:
 
 	def show(self):
 	    """Update UnicornHat with the contents of the display buffer"""
-	    self.canvas.delete('all')
-	    for i, led in enumerate(self.leds):
-	    	self.canvas.create_rectangle(i*self.scale, 0, (i+1)*self.scale, self.scale, fill=led)
+	    if self.gui:
+	    	self.canvas.delete('all')
+	    	for i, led in enumerate(self.leds):
+	    		self.canvas.create_rectangle(i*self.scale, 0, (i+1)*self.scale, self.scale, fill=led)
 
 
 

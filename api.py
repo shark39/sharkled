@@ -28,22 +28,6 @@ def getResponse(jsondata='', status=200):
 	return resp
 
 
-def getPosition(areas=None, indexes=None, **kwargs):
-	pos = []
-	if areas:
-		app.logger.debug("Got Areas from Request: " + str(areas))
-		for a in areas:
-			pos += AREAS[a]
-	if indexes:
-		#app.logger.debug("Got range from Request: " + str(indexes))
-		try: 
-			pos += eval('range(LEDS_COUNT)'+ indexes)
-		except Exception as ex:
-			pass
-			#app.logger.debug("Cannot parse range. " + str(ex))
-	return pos
-
-
 app = Flask(__name__)
 auto = Autodoc(app)
 master = LEDMaster()
@@ -56,7 +40,6 @@ master = LEDMaster()
 #for logger in loggers:
 #	logger.handlers = []
 #	logger.addHandler(file_handler)
-
 
 
 ###############
@@ -176,8 +159,7 @@ def effect(name):
 	
 
 	### TODO outsource the following code in validators
-	for k in post.iterkeys():
-		
+	for k in post.iterkeys():	
 		if name == 'chase':
 			if post.get('width') and post.get('width') < 1: 
 				pass #post['width'] = int(post['width'] * post['pos'])

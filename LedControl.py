@@ -22,10 +22,11 @@ if sys.platform in ['linux2', 'linux'] and os.getenv('TRAVIS', 0) == 0:
 	import unicornhat as ws
 else:
 	from wsscreen import Stripe 
-	ws = Stripe() 
+	ws = Stripe(gui=not os.getenv('TRAVIS', 0)) 
 	RPI = False
-	t = Thread(target=ws.win.mainloop, args=())
-	#t.start()
+	if os.getenv('TRAVIS', 0):
+		t = Thread(target=ws.win.mainloop, args=())
+		#t.start()
 
 #logging.basicConfig(filename='ledcontrol.log',level=logging.DEBUG)
 
