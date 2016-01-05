@@ -165,7 +165,7 @@ def effect(name):
 
 	## validation for specific
 	validations = {"color": [lambda x: Validator.color(x, ['color'])], \
-					"sequence" [lambda x: Validator.colorlist(x, ['sequence'])]}
+					"sequence": [lambda x: Validator.colorlist(x, ['sequence']), Validator.fadespeed]}
 	if name in validations:
 		for f in validations[name]:
 			validation = f(post)
@@ -177,8 +177,6 @@ def effect(name):
 
 	### TODO outsource the following code in validators
 	for k in post.iterkeys():
-		if name == 'sequence' and k == 'fadespeed' and post['fadespeed'] < 1:
-			post[k] = post[k] * post['interval'] # make fadespeed from relative to absolute depending on interval 
 		
 		if name == 'chase':
 			if post.get('width') and post.get('width') < 1: 
