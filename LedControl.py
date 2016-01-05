@@ -24,7 +24,7 @@ else:
 	from wsscreen import Stripe 
 	ws = Stripe(gui=not os.getenv('TRAVIS', 0)) 
 	RPI = False
-	if os.getenv('TRAVIS', 0):
+	if not os.getenv('TRAVIS', 0):
 		t = Thread(target=ws.win.mainloop, args=())
 		#t.start()
 
