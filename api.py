@@ -19,12 +19,6 @@ from LedControl import LEDController, LEDMaster
 from parameter_validation import Validator
 from natural_language_parser import NLP 
 
-def mergergb(r, g, b):
-	return str('%6x' %((r << 16) + (g << 8) + b)).replace(' ', '0')
-
-def splitrgb(rgb):
-	return rgb>>16, (rgb>>8) & 255, rgb & 255 
-
 
 def getResponse(jsondata='', status=200):
 	resp = make_response(jsondata, status)
@@ -127,21 +121,21 @@ def shutdown():
 @auto.doc()
 def getLeds():
 	'''array with 3-tuple of the current color of the leds'''
-	return getResponse(jsonify(leds=master.getLeds()))
+	return jsonify(leds=master.getLeds())
 
 @app.route("/areas")
 @browser_headers
 @auto.doc()
 def ranges():
 	'''Returns a list of given ranges'''
-	return getResponse(jsonify(areas=AREAS.keys()), 200)
+	return jsonify(areas=AREAS.keys()), 200
 
 @app.route("/effects")
 @browser_headers
 @auto.doc()
 def effects():
 	'''list with all available effects and default parameters'''
-	return getResponse(jsonify(effects=LEDMaster.getEffects()), 200)
+	return jsonify(effects=LEDMaster.getEffects()), 200
 
 	
 @app.route("/running")
@@ -150,8 +144,7 @@ def effects():
 def getControllers():
 	'''id, name and parameters of all running effects'''
 	controllers = [{"id": cid, "name" : c.name, "parameters": c.parameters} for cid, c in master.controllers.items()]
-	return getResponse(jsonify(controllers=controllers), 200)
-
+	return jsonify(controllers=controllers), 200
 
 #############################
 ## WORKFLOW 		       ##
@@ -171,7 +164,8 @@ def effect(name):
 		post = validation.post
 
 	## validation for specific
-	validations = {"color": [lambda x: Validator.color(x, ['color'])]}
+	validations = {"color": [lambda x: Validator.color(x, ['color'])], \
+					"sequence" [lambda x: Validator.colorlist(x, ['sequence'])]}
 	if name in validations:
 		for f in validations[name]:
 			validation = f(post)
@@ -181,13 +175,11 @@ def effect(name):
 		warnings.append("No Validator defined for effect parameters")
 	
 
-	### outsource the following code in validators
+	### TODO outsource the following code in validators
 	for k in post.iterkeys():
 		if name == 'sequence' and k == 'fadespeed' and post['fadespeed'] < 1:
 			post[k] = post[k] * post['interval'] # make fadespeed from relative to absolute depending on interval 
-		if name == 'sequence' and k == 'sequence':
-			post[k] = map(lambda x: x+[1] if len(x) == 3 else x, post[k])
-
+		
 		if name == 'chase':
 			if post.get('width') and post.get('width') < 1: 
 				pass #post['width'] = int(post['width'] * post['pos'])
@@ -205,8 +197,6 @@ def effect(name):
 @auto.doc()
 def reset():
 	'''finish all led controllers and set color and mask to default'''
-	if request.method == 'OPTIONS':
-		return getResponse()
 	master.reset()
 	return getResponse('', 204)
 
