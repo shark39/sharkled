@@ -140,6 +140,28 @@ class Validator:
 		validation.post = post
 		return validation
 
+	@staticmethod
+	def fadespeed(post):
+		'''todo warning if speed is to high'''
+		warnings = []
+		if post.get("fadespeed"):
+			try:
+				f = float(post['fadespeed'])
+			except:
+				warnings.append("wrong format for fadespeed")
+			else:
+				if f < 1 and post.get("interval"):
+					f = f * float(post["interval"]) ## TODO make sure that interval is validated
+					warnings.append("interpreted fadespeed as a relative value, converted to absolute value depending on interval")
+				post["fadespeed"] = f 
+
+		validation = collections.namedtuple('validation', 'post warnings')
+		validation.warnings = warnings
+		validation.post = post
+		return validation
+
+
+
 
 	@staticmethod
 	def addMissing(name, post):
@@ -236,6 +258,17 @@ if __name__ == "__main__":
 	assert v.post == {"z" : 0, "background": ''}
 	assert len(v.warnings) == 1
 
+
+	print "Test Validator.fadespeed"
+	print "Test for normal value"
+	v = Validator.fadespeed({"fadespeed": '200', "interval" : 1000})
+	assert v.post["fadespeed"] == 200
+	assert len(v.warnings) == 0
+
+	print "Test for normal value"
+	v = Validator.fadespeed({"fadespeed": 0.5, "interval" : 1000})
+	assert v.post["fadespeed"] == 500
+	assert len(v.warnings) == 1
 
 	print "All Tests finished"
 
