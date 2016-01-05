@@ -14,8 +14,8 @@ import inspect # for parsing default args of methods
 from constants import *
 
 
-### If not running on linux/raspberry pi import a mock
-if sys.platform in ['linux2', 'linux']:
+### If not running on linux/raspberry pi import a mock, same if running on travis for testing
+if sys.platform in ['linux2', 'linux'] and os.getenv('TRAVIS', 0) == 0:
 	## using raspberry
 	RPI = True
 	import unicornhat as ws
