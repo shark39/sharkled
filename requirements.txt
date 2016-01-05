@@ -1,0 +1,4 @@
+Flask==0.10.1
+Flask-Autodoc==0.1.2
+Flask-Cors==2.1.0
+jellyfish==0.5.1
