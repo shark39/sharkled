@@ -3,6 +3,7 @@ from threading import Thread
 import time # for timestamp
 from functools import partial
 import sys # for exit
+import os
 import logging 
 import random # for randomization of course
 import math # for e.g. sin
