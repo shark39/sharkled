@@ -1,4 +1,5 @@
 [![Code Climate](https://codeclimate.com/github/shark39/sharkled/badges/gpa.svg)](https://codeclimate.com/github/shark39/sharkled)
+[![Build Status](https://travis-ci.org/shark39/sharkled.svg?branch=master)](https://travis-ci.org/shark39/sharkled)
 
 
 # sharkled
