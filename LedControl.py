@@ -49,7 +49,8 @@ class LEDMaster:
         '''
         compare = lambda x, y: collections.Counter(x) == collections.Counter(y)
         id = -1
-        for i, controller in self.controllers.iteritems():  # update controller if areas are the same
+        # update controller if areas are the same
+        for i, controller in self.controllers.iteritems():
             if controller.name == name and compare(parameters.get('areas'), controller.parameters.get('areas')):
                 controller.parameters = parameters
                 id = controller.id
@@ -182,6 +183,7 @@ class LEDMaster:
 
 
 class LEDController:
+
     '''stores all default functions'''
     id = 0
 
@@ -231,7 +233,7 @@ class LEDController:
                 for i in range(len(indexes)):
                     cleanIndexes[i] = int(indexes[i]) if indexes[
                         i] != '' else None
-                pos += self._resolve(resolved)[cleanIndexes[0]                                               :cleanIndexes[1]:cleanIndexes[2]]
+                pos += self._resolve(resolved)[cleanIndexes[0]:cleanIndexes[1]:cleanIndexes[2]]
             else:
                 pos.append(resolved)
         return pos

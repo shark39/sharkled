@@ -27,7 +27,8 @@ class NLP:
             effect = self.findEffectName(words)
             parameters = self.findParameters(words, effect)
 
-        inpterpretation = collections.namedtuple("inpterpretation",  "effect areas parameters")
+        inpterpretation = collections.namedtuple(
+            "inpterpretation",  "effect areas parameters")
         inpterpretation.effect = effect
         inpterpretation.areas = areas
         inpterpretation.parameters = parameters
@@ -37,13 +38,14 @@ class NLP:
         '''find every word that could indicate the area.
         TODO: handle numbers, handle aliases, choose lowest granularity'''
         areas = []
-        for i, word in enumerate(words):  ## TODO detect stuff like Balken1, Wand2
+        # TODO detect stuff like Balken1, Wand2
+        for i, word in enumerate(words):
             for a in AREAS:
-                if a[-1] in '1234':  ## skip Balken1, 2 and so on 
-                    continue  ## TODO detect if number is attached
+                if a[-1] in '1234':  # skip Balken1, 2 and so on
+                    continue  # TODO detect if number is attached
                 if jellyfish.jaro_distance(unicode(a), unicode(word)) > self.threshold and a not in areas:
                     areas.append(a)
-        return areas 
+        return areas
 
     def getParameterIndicatorIndex(self, words):
         '''return index of word which could mostly indicate the beginning of parameter inputs'''
@@ -56,56 +58,59 @@ class NLP:
                     best_match = match
                     best_index = i
                     if match == 1:
-                        return i  ## shortcut, no need to search for more
+                        return i  # shortcut, no need to search for more
         return best_index
 
     def findEffectName(self, words):
         '''search only in words before buzzword paramerers'''
-        ## find effect name
-        ## word with highest match and before keyword parameters
+        # find effect name
+        # word with highest match and before keyword parameters
         choices = self.effect_choices
         best_match_effect = collections.namedtuple('Match', 'effect chance')
         best_match_effect.chance = 0
         for effect in choices:
             for i, word in enumerate(words):
-                match = jellyfish.jaro_distance(unicode(effect), unicode(word)) 
+                match = jellyfish.jaro_distance(unicode(effect), unicode(word))
                 if match > best_match_effect.chance and match > self.threshold:
                     best_match_effect.chance = match
                     best_match_effect.effect = effect
-            
+
         return best_match_effect.effect
 
     def findParameters(self, words, effectname):
         ''' only check words after a parameter indicator'''
-        parameters = LEDMaster.getDefaultParameters(effectname)  ## always load default 
+        parameters = LEDMaster.getDefaultParameters(
+            effectname)  # always load default
         for i, word in enumerate(words):
             for j, p in enumerate(parameters.keys()):
-                    match = jellyfish.jaro_distance(unicode(p), unicode(word)) 
-                    if match > self.threshold:
-                        value = self.understandParameterValue(p, parameters[p], words[i+1:])
-                        parameters[p] = value
+                match = jellyfish.jaro_distance(unicode(p), unicode(word))
+                if match > self.threshold:
+                    value = self.understandParameterValue(
+                        p, parameters[p], words[i+1:])
+                    parameters[p] = value
         return parameters
- 
+
     def understandParameterValue(self, parametername, defaultvalue, words):
         '''words is a list with all words after the parametername'''
-        ##convert value after keyword to correct type
+        # convert value after keyword to correct type
         value = None
         correct_type = type(defaultvalue)
-        if correct_type == list and len(defaultvalue) == 4:  ## assume that we have a color here
+        # assume that we have a color here
+        if correct_type == list and len(defaultvalue) == 4:
             value = self.interpretAsColor(words)
-        else:   
+        else:
             try:
                 value = correct_type(words[0])
             except IndexError:
-                pass ## last index
+                pass  # last index
             except:
-                print "exception"                   
+                print "exception"
                 print "Failed to decode ", words[0]
-        
+
         if value:
             return value
         return defaultvalue
-                    
+
     def interpretAsColor(self, words):
         '''tries to map to first couple of words to a color'''
         best_match_color = collections.namedtuple('Match', 'index chance')
@@ -115,9 +120,10 @@ class NLP:
                 matches = []
                 for k, c in enumerate(color['name'].split(), start=0):
                     try:
-                        m = jellyfish.jaro_distance(unicode(c), unicode(words[i+k])) 
+                        m = jellyfish.jaro_distance(
+                            unicode(c), unicode(words[i+k]))
                     except IndexError:
-                        break ## end of words
+                        break  # end of words
                     else:
                         matches.append(m)
                 match = sum(matches)/len(matches)
@@ -125,19 +131,20 @@ class NLP:
                     best_match_color.chance = match
                     best_match_color.index = j
                     if best_match_color.chance > 0:
-                        rgb = map(lambda x: x/255.0, list(eval(COLORS[best_match_color.index]['rgb']))) + [1]
+                        rgb = map(
+                            lambda x: x/255.0, list(eval(COLORS[best_match_color.index]['rgb']))) + [1]
                         return rgb
         return None
 
     def interpretAsPercent(self, words):
         pass
-                
 
 
 if __name__ == "__main__":
-    ## TODO and wird als wand interpretiert
+    # TODO and wird als wand interpretiert
     nlp = NLP()
-    messages = ["new effect chaser with interval 1000 color jungle green", "rainbow for all", "chase with interval 3000 count 10", "chaser"]
+    messages = ["new effect chaser with interval 1000 color jungle green",
+                "rainbow for all", "chase with interval 3000 count 10", "chaser"]
     print "Test NLP"
     for m in messages:
         print m
