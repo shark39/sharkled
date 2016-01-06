@@ -150,7 +150,7 @@ class Validator:
 			except:
 				warnings.append("wrong format for fadespeed")
 			else:
-				if f < 1 and post.get("interval"):
+				if f <= 1 and post.get("interval"):
 					f = f * float(post["interval"]) ## TODO make sure that interval is validated
 					warnings.append("interpreted fadespeed as a relative value, converted to absolute value depending on interval")
 				post["fadespeed"] = f 
@@ -268,6 +268,11 @@ if __name__ == "__main__":
 	print "Test for normal value"
 	v = Validator.fadespeed({"fadespeed": 0.5, "interval" : 1000})
 	assert v.post["fadespeed"] == 500
+	assert len(v.warnings) == 1
+
+	print "Test for 100%==1"
+	v = Validator.fadespeed({"fadespeed": 1, "interval" : 1000})
+	assert v.post["fadespeed"] == 1000
 	assert len(v.warnings) == 1
 
 	print "All Tests finished"
