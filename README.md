@@ -1,11 +1,13 @@
-[![Code Climate](https://codeclimate.com/github/shark39/sharkled/badges/gpa.svg)](https://codeclimate.com/github/shark39/sharkled)
-[![Build Status](https://travis-ci.org/shark39/sharkled.svg?branch=master)](https://travis-ci.org/shark39/sharkled)
-
 
 # sharkled
 Flask backend to control ws2812 led stripes via rasperry pi
 
-https://github.com/jgarff/rpi_ws281x
+### Setup
+This branchs code is based on https://github.com/jgarff/rpi_ws281x
+Follow their README for setup.
+After that run `pip install -r requirements.txt` to install the python dependencies.
+
+
 
 
 Code Overview
