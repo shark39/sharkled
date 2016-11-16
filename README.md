@@ -3,14 +3,9 @@
 
 
 # sharkled
-Flask backend to control ws2812 led stripes via rasperry pi 
+Flask backend to control ws2812 led stripes via rasperry pi
 
-How to setup
-
-Unicornhat lib for raspberry 
-sudo python setup.py build
-sudo python setup.py install
-
+https://github.com/jgarff/rpi_ws281x
 
 
 Code Overview
@@ -25,7 +20,7 @@ simplified code to get the main aspects of the code structure
   ## some processing
   lid = ledmaster.add(name=name, parameters=postdata) ## get the indentifier of the  effect
 	return {id: lid, name: name, parameters: ledmaster.getControllerParameters(lid)} ## return id and all parameters
-	
+
 | LedControl.py
   ## handles all the logic
       class LEDMaster
@@ -45,7 +40,7 @@ simplified code to get the main aspects of the code structure
      |  getDefaultParameters(effect)
      |  
      |  getEffects()
-      
+
       class LEDEffect(LEDController)
         contains all the effects as methods with default values
        |  Some methods defined here:
@@ -58,5 +53,3 @@ simplified code to get the main aspects of the code structure
        |      Description: generates a pulsating light
        |  
 ```
-
-
