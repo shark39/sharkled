@@ -17,9 +17,12 @@ From the very beginning:
 9. sudo apt-get install scons
 10. cd rpi_ws281x
 11. sudo scons
-12. cd ../sharkled
-13. `sudo pip install -r requirements.txt`
-13. sudo python api.py
+12. cd python
+13. sudo python setup.py build
+14. sudo python setupt.py install
+15. cd ../../sharkled
+16. `sudo pip install -r requirements.txt`
+17. sudo python api.py
 
 
 
