@@ -176,6 +176,7 @@ def effect(name):
             if post.get('wavelength') <= 1:
                 pass  # wavelength = int(post.get('wavelength') * length)
 
+    print "add to master"
     lid = master.add(name=name, parameters=post)
     return jsonify(id=lid, name=name, parameters=master.getControllerParameters(lid), warnings=warnings), 201
 
