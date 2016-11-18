@@ -14,7 +14,7 @@ From the very beginning:
 6. git clone https://github.com/shark39/sharkled.git
 7. git clone https://github.com/jgarff/rpi_ws281x.git
 8. git clone 
-9. sudo apt-get install scons
+9. sudo apt-get install scons python-dev
 10. cd rpi_ws281x
 11. sudo scons
 12. cd python
