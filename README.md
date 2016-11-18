@@ -1,11 +1,27 @@
-[![Code Climate](https://codeclimate.com/github/shark39/sharkled/badges/gpa.svg)](https://codeclimate.com/github/shark39/sharkled)
-[![Build Status](https://travis-ci.org/shark39/sharkled.svg?branch=master)](https://travis-ci.org/shark39/sharkled)
-
 
 # sharkled
 Flask backend to control ws2812 led stripes via rasperry pi
 
-https://github.com/jgarff/rpi_ws281x
+### Setup
+
+From the very beginning:
+
+1. buy a raspberry pi and a sd card
+2. follow the instructions and install raspberrian
+3. 'sudo apt-get update'
+4. 'curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -'
+5. 'sudo apt-get install nodejs npm node-semver'
+6. git clone https://github.com/shark39/sharkled.git
+7. git clone https://github.com/jgarff/rpi_ws281x.git
+8. git clone 
+9. sudo apt-get install scons
+10. cd rpi_ws281x
+11. sudo scons
+12. cd ../sharkled
+13. `sudo pip install -r requirements.txt`
+13. sudo python api.py
+
+
 
 
 Code Overview
