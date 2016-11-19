@@ -12,14 +12,15 @@ From the very beginning:
 4. 'curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -'
 5. 'sudo apt-get install nodejs npm node-semver'
 6. git clone https://github.com/shark39/sharkled.git
-7. git clone https://github.com/jgarff/rpi_ws281x.git
-8. git clone 
-9. sudo apt-get install scons
+9. sudo apt-get install scons python-dev
 10. cd rpi_ws281x
 11. sudo scons
-12. cd ../sharkled
-13. `sudo pip install -r requirements.txt`
-13. sudo python api.py
+12. cd python
+13. sudo python setup.py build
+14. sudo python setupt.py install
+15. cd ../../sharkled
+16. `sudo pip install -r requirements.txt`
+17. sudo python api.py
 
 
 
