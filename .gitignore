@@ -2,3 +2,6 @@
 *.log
 sftp-config.json
 
+node_modules
+
+ui/static/bower_components
