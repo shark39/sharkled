@@ -36,7 +36,7 @@
     </div>
     <div class="right">
       <button id="start_button" onclick="startButton(event)">
-        <img id="start_img" src="mic.gif" alt="Start"></button>
+        <img id="start_img" src="static/img/mic.gif" alt="Start"></button>
     </div>
     <div id="results">
       <span id="final_span" class="final"></span>
@@ -46,17 +46,16 @@
     <div class="center">
       <div class="sidebyside" style="text-align:right">
         <button id="copy_button" class="button" onclick="copyButton()">
-          Copy and Paste</button>
+          clear</button>
         <div id="copy_info" class="info">
           Press Control-C to copy text.<br>(Command-C on Mac.)
         </div>
       </div>
       <div class="sidebyside">
         <button id="email_button" class="button" onclick="emailButton()">
-          Create Email</button>
+          OK</button>
         <div id="email_info" class="info">
-          Text sent to default email application.<br>
-          (See chrome://settings/handlers to change.)
+        send to api
         </div>
       </div>
       <p>
@@ -114,17 +113,17 @@
       recognition.onstart = function() {
         recognizing = true;
         showInfo('info_speak_now');
-        start_img.src = 'mic-animate.gif';
+        start_img.src = 'static/img/mic-animate.gif';
       };
 
       recognition.onerror = function(event) {
         if (event.error == 'no-speech') {
-          start_img.src = 'mic.gif';
+          start_img.src = 'static/img/mic.gif';
           showInfo('info_no_speech');
           ignore_onend = true;
         }
         if (event.error == 'audio-capture') {
-          start_img.src = 'mic.gif';
+          start_img.src = 'static/img/mic.gif';
           showInfo('info_no_microphone');
           ignore_onend = true;
         }
@@ -143,7 +142,7 @@
         if (ignore_onend) {
           return;
         }
-        start_img.src = 'mic.gif';
+        start_img.src = 'static/img/mic.gif';
         if (!final_transcript) {
           showInfo('info_start');
           return;

@@ -4,6 +4,6 @@ AREAS = {
 	"middle": range(100, 150),
 	"window2": range(150, 200),
 	"rest": range(200, 300),
-	"All": ["desk", "window1"]}
+	"All": range(300)}
 DEFECTLEDS = []
 LEDS_COUNT = 300
