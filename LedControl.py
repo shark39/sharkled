@@ -32,8 +32,8 @@ if sys.platform in ['linux2', 'linux'] and os.getenv('TRAVIS', 0) == 0:
     ws = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS)
     ws.begin()
 else:
-    from wsscreen import Stripe
-    ws = Stripe(gui=not os.getenv('TRAVIS', 0))
+    from neopixel_mock import *
+    ws = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS)
     RPI = False
     if not os.getenv('TRAVIS', 0):
         t = Thread(target=ws.win.mainloop, args=())
