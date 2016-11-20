@@ -9,7 +9,7 @@ import jellyfish
 from functools import partial
 from time import sleep
 from logging import FileHandler, Formatter, getLogger, DEBUG
-from flask import Flask, request, Response, make_response, jsonify, send_from_directory
+from flask import Flask, request, Response, make_response, jsonify, send_from_directory, render_template
 from flask.ext.autodoc import Autodoc
 from functools import wraps
 from constants import *
@@ -30,7 +30,7 @@ def getResponse(jsondata='', status=200):
     return resp
 
 
-app = Flask(__name__, static_url_path='')
+app = Flask(__name__, static_folder='../ui/static', template_folder='../ui/templates')
 auto = Autodoc(app)
 master = LEDMaster()
 
@@ -76,13 +76,18 @@ def browser_headers(f):
     return decorated_function
 
 
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 @app.route("/debug")
 def dev():
     raise
 
-@app.route('/ui/<path:path>')
-def send_js(path):
-    return send_from_directory('ui', path)
+#@app.route('/ui/<path:path>')
+#def send_js(path):
+#    return send_from_directory('ui', path)
 
 
 def shutdown_server():
