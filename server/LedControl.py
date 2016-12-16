@@ -15,21 +15,41 @@ import inspect  # for parsing default args of methods
 from constants import *
 
 
+
+# LED strip configuration:
+LED_COUNT      = 300      # Number of LED pixels.
+LED_PIN        = 18      # GPIO pin connected to the pixels (must support PWM!).
+LED_FREQ_HZ    = 800000  # LED signal frequency in hertz (usually 800khz)
+LED_DMA        = 5       # DMA channel to use for generating signal (try 5)
+LED_BRIGHTNESS = 128     # Set to 0 for darkest and 255 for brightest
+LED_INVERT     = False   # True to invert the signal (when using NPN transistor level shift)
 # If not running on linux/raspberry pi import a mock, same if running on
 # travis for testing
 if sys.platform in ['linux2', 'linux'] and os.getenv('TRAVIS', 0) == 0:
     # using raspberry
     RPI = True
-    import unicornhat as ws
+    from neopixel import *
+    ws = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS)
+    ws.begin()
 else:
-    from wsscreen import Stripe
-    ws = Stripe(gui=not os.getenv('TRAVIS', 0))
+    from neopixel_mock import *
+    ws = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS)
     RPI = False
     if not os.getenv('TRAVIS', 0):
         t = Thread(target=ws.win.mainloop, args=())
         # t.start()
 
 # logging.basicConfig(filename='ledcontrol.log',level=logging.DEBUG)
+
+## overwrite color function
+
+def Color(red, green, blue, white = 0):
+	"""Convert the provided red, green, blue color to a 24-bit color value.
+	Each color component should be a value 0-255 where 0 is the lowest intensity
+	and 255 is the highest intensity.
+	"""
+	return (white << 24) | (green << 16)| (red << 8) | blue
+
 
 
 class LEDMaster:
@@ -45,7 +65,7 @@ class LEDMaster:
             self.bufferThread.start()
 
     def add(self, name, parameters={}):
-        '''adds or updates the controller indentified by name 
+        '''adds or updates the controller indentified by name
         '''
         compare = lambda x, y: collections.Counter(x) == collections.Counter(y)
         id = -1
@@ -168,8 +188,8 @@ class LEDMaster:
                 if i in DEFECTLEDS:
                     skip += 1
                 else:
-                    ws.set_pixel(
-                        i - skip, int(255 * c[0]), int(255 * c[1]), int(255 * c[2]))
+                    ws.setPixelColor(
+                        i - skip, Color(int(255 * c[0]), int(255 * c[1]), int(255 * c[2])))
             ws.show()
             timestampNow = LEDMaster.getTimestamp()
             wait = (self.actualframerate - (timestampNow - timestamp))
@@ -274,8 +294,8 @@ class LEDEffect(LEDController):
 
     def color(self, ts, pos, color=[1, 1, 1, 1], **kwargs):
         '''Description: set a solid color
-        Parameters: 
-                color: 4-tupel of floats between 0..1 
+        Parameters:
+                color: 4-tupel of floats between 0..1
         '''
         return len(pos) * [color]
 
@@ -301,7 +321,7 @@ class LEDEffect(LEDController):
         '''Description: generates a chase effect
         Parameters:
                 interval:
-                count: 
+                count:
                 width:
                 soft:
                 color:
@@ -344,7 +364,7 @@ class LEDEffect(LEDController):
 
     def rainbow(self, ts, pos, interval=1000, wavelength=100, alpha=1, **kwargs):
         '''Description: generates a rainbow
-        Parameters: 
+        Parameters:
                 interval:
                 wavelength:
                 alpha: float | 0..1 | transparency of rainbow
@@ -380,10 +400,10 @@ class LEDEffect(LEDController):
     def bounce(self, ts, pos, interval=1000, color=[1, 1, 1, 1], background=[0, 0, 0, 1], minpeg=1, maxpeg=100, mode='linear', soft=0, samespeed=False, **kwargs):
         '''Description: generates a levelmeter like bouncing
         Parameters:
-                interval: time in milliseconds for one complete move 
-                color: 
+                interval: time in milliseconds for one complete move
+                color:
                 background:
-                minpeg: minimum 
+                minpeg: minimum
                 maxpeg: maximum
                 mode: not implemented so far
                 soft: number of interpolated pixel (not implemented so far)
@@ -403,7 +423,7 @@ class LEDEffect(LEDController):
     def gradient(self, ts, pos, colors=[[1, 0, 0, 1], [0, 1, 0, 1]], **kwargs):
         '''Description: interpolate over all colors
         Parameters:
-                colors: array of colors 
+                colors: array of colors
                 '''
         out = []
         interval_length = int(round(1.0 * len(pos) / (len(colors) - 1)))
@@ -428,24 +448,27 @@ if __name__ == '__main__':
 
     master = LEDMaster()
     # print LEDMaster.getEffects()
+    master.add(name='rainbow', parameters={
+               'areas': ['All'], 'alpha': 0.4, 'interval': 10000})
+    wait = raw_input("Enter to finish")
+    master.add(name='chase', parameters={'count': 1, 'areas': ['Wand1', 'Wand2'], 'interval': 600,  'color': [
+               0, 0, 1, 0.8], 'soft': 2, 'width': 1, 'background': [0, 1, 0, 0]})
+    wait = raw_input("Enter to finish")
 
-    master.add(name='gradient', parameters={'areas': ['Wand'], 'colors': [
+
+    master.add(name='gradient', parameters={'areas': ['Wand4'], 'colors': [
                [1, 0, 0, 1], [0, 0, 1, 1], [0, 1, 0, 1]]})
     wait = raw_input("Enter to finish")
-    master.finish = True
-    sys.exit()
+    #master.finish = True
+    #sys.exit()
 
     master.add(name='christmas')
-    master.add(name='chase', parameters={'count': 4, 'areas': ['All'], 'interval': 60000,  'color': [
-               0, 0, 1, 0.8], 'soft': 20, 'width': 1, 'background': [0, 0, 0, 0]})
-    wait = raw_input("Enter to finish")
-    master.finish = True
+    #master.finish = True
 
     #id1 = master.add(name='bucketColor', parameters = {'areas': ['Wand']})
     master.add(name='color', parameters={
                'areas': ['All'], 'color': [1, 0.1, 0.25, 1]})
-    master.add(name='rainbow', parameters={
-               'areas': ['All'], 'alpha': 0.4, 'interval': 10000})
+
     #wait = raw_input("Enter to finish")
     master.reset()
     # time.sleep(3)

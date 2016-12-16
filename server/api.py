@@ -9,7 +9,7 @@ import jellyfish
 from functools import partial
 from time import sleep
 from logging import FileHandler, Formatter, getLogger, DEBUG
-from flask import Flask, request, Response, make_response, jsonify
+from flask import Flask, request, Response, make_response, jsonify, send_from_directory, render_template
 from flask.ext.autodoc import Autodoc
 from functools import wraps
 from constants import *
@@ -30,7 +30,7 @@ def getResponse(jsondata='', status=200):
     return resp
 
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='../ui/static', template_folder='../ui/templates')
 auto = Autodoc(app)
 master = LEDMaster()
 
@@ -76,10 +76,18 @@ def browser_headers(f):
     return decorated_function
 
 
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
 @app.route("/debug")
 def dev():
-
     raise
+
+#@app.route('/ui/<path:path>')
+#def send_js(path):
+#    return send_from_directory('ui', path)
 
 
 def shutdown_server():
@@ -176,6 +184,7 @@ def effect(name):
             if post.get('wavelength') <= 1:
                 pass  # wavelength = int(post.get('wavelength') * length)
 
+    print "add to master"
     lid = master.add(name=name, parameters=post)
     return jsonify(id=lid, name=name, parameters=master.getControllerParameters(lid), warnings=warnings), 201
 
@@ -271,4 +280,4 @@ if __name__ == '__main__':
         debug = True
     else:
         debug = False
-    app.run(host='0.0.0.0', port=9000, debug=debug)
+    app.run(host='0.0.0.0', port=9000, debug=True)
