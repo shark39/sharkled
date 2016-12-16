@@ -2,15 +2,17 @@
 # sharkled
 Flask backend to control ws2812 led stripes via rasperry pi
 
+
 ### Setup
+(install node, install ws2812 libary, install flask, ...)
 
 From the very beginning:
 
 1. buy a raspberry pi and a sd card
 2. follow the instructions and install raspberrian
-3. 'sudo apt-get update'
-4. 'curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -'
-5. 'sudo apt-get install nodejs npm node-semver'
+3. `sudo apt-get update`
+4. `curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -`
+5. `sudo apt-get install nodejs npm node-semver`
 6. git clone https://github.com/shark39/sharkled.git
 9. sudo apt-get install scons python-dev
 10. cd rpi_ws281x
@@ -20,8 +22,16 @@ From the very beginning:
 14. sudo python setupt.py install
 15. cd ../../sharkled
 16. `sudo pip install -r requirements.txt`
-17. sudo python api.py
+(17. `sudo easy_install supervisor`)
 
+File Structure:
+
+The python code is in the folder server.
+If you want to start the server run `sudo python server/api.py`
+
+Example Request:
+
+TODO!!!
 
 
 
