@@ -21,7 +21,7 @@ From the very beginning:
 12. cd python
 13. sudo python setup.py build
 14. sudo python setupt.py install
-15. cd ../../sharkled
+15. cd ../..
 16. `sudo pip install -r requirements.txt`
 (17. `sudo easy_install supervisor`)
 
