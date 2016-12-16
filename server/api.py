@@ -280,4 +280,4 @@ if __name__ == '__main__':
         debug = True
     else:
         debug = False
-    app.run(host='0.0.0.0', port=9000, debug=True)
+    app.run(host='0.0.0.0', port=9000, debug=debug)
