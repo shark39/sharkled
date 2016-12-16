@@ -14,6 +14,7 @@ From the very beginning:
 4. `curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -`
 5. `sudo apt-get install nodejs npm node-semver`
 6. git clone https://github.com/shark39/sharkled.git
+7. git submodule init && git submodule update
 9. sudo apt-get install scons python-dev
 10. cd rpi_ws281x
 11. sudo scons
