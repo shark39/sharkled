@@ -25,7 +25,6 @@ From the very beginning:
 
 ```blacklist snd_bcm2835```
 
-
 15. cd ../..
 16. `sudo pip install -r requirements.txt`
 (17. `sudo easy_install supervisor`)
