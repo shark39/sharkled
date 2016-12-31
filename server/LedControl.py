@@ -98,6 +98,13 @@ class LEDMaster:
         self.controllers = collections.OrderedDict()
         self.clear()
 
+    def adjustAllInterval(self, value):
+        '''changes the parameter of interval for all to synchronize effects'''
+        for cid in self.controllers:
+            if 'interval' in self.controllers[cid].parameters:
+                self.controllers[cid].parameters['interval'] = value
+
+
     def clear(self):
         '''set everything to black'''
         self.buffer = LEDS_COUNT * [(0, 0, 0, 1)]

@@ -184,7 +184,6 @@ def effect(name):
             if post.get('wavelength') <= 1:
                 pass  # wavelength = int(post.get('wavelength') * length)
 
-    print "add to master"
     lid = master.add(name=name, parameters=post)
     return jsonify(id=lid, name=name, parameters=master.getControllerParameters(lid), warnings=warnings), 201
 
@@ -244,6 +243,28 @@ def natural_language_effect():
     return getResponse(jsonify(interpretation={}, effect=effectreturn), 201)
 
 
+########################
+## GLOBAL ADJUSTMENTS ##
+########################
+
+@app.route('/adjust/all', methods=['POST'])
+@browser_headers
+def adjustAll():
+    interval = request.get_json().get('value') or 1000
+    master.adjustAllInterval(interval)
+    getResponse('', 204)
+
+
+@app.route('/scene/<name>', methods=['POST', 'GET'])
+@browser_headers
+def scene(name):
+    if name in ['strobe', 'strobo']:
+        master.reset()
+        master.add(name='chase',
+            parameters={'interval': 200, 'count': 8, 'areas': ['All']})
+        return getResponse('ok', 200)
+    return getResponse('name unknown', 404)
+
 #################
 #Docs&Help     ##
 #################
@@ -280,4 +301,5 @@ if __name__ == '__main__':
         debug = True
     else:
         debug = False
+    debug = True
     app.run(host='0.0.0.0', port=9000, debug=debug)
